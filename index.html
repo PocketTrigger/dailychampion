@@ -1,0 +1,48 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Daily Champion</title>
+  <meta name="description" content="A daily Pokémon boss battle. Draft six, face a different champion every day.">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&family=Inter:wght@400;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <header class="topbar">
+    <button class="icon-btn" id="btn-help" title="How to play" aria-label="How to play">?</button>
+    <div class="brand">
+      <span class="brand-ball" aria-hidden="true"></span>
+      <h1>DAILY CHAMPION</h1>
+    </div>
+    <div class="top-actions">
+      <button class="icon-btn" id="btn-dex" title="Shiny Dex" aria-label="Shiny Dex">📖</button>
+      <button class="icon-btn" id="btn-bosses" title="All bosses" aria-label="All bosses">👥</button>
+      <button class="icon-btn" id="btn-anim" aria-label="Toggle move animations">✨</button>
+      <button class="icon-btn" id="btn-speed" title="Battle speed" aria-label="Battle speed">1×</button>
+      <button class="icon-btn" id="btn-stats" title="Statistics" aria-label="Statistics">📊</button>
+    </div>
+  </header>
+
+  <main id="app"></main>
+
+  <div class="modal" id="modal" hidden>
+    <div class="modal-card" role="dialog" aria-modal="true">
+      <button class="modal-close" id="modal-close" aria-label="Close">✕</button>
+      <div id="modal-body"></div>
+    </div>
+  </div>
+
+  <div class="toast" id="toast" hidden></div>
+
+  <footer class="foot">Fan-made, non-commercial. Pokémon © Nintendo / Creatures / GAME FREAK. Sprites and move effects via PokéAPI &amp; Pokémon Showdown.</footer>
+
+  <script src="moves-gen.js"></script>
+  <script src="data.js"></script>
+  <script src="dex-all.js"></script>
+  <script src="anim.js"></script>
+  <script src="game.js"></script>
+</body>
+</html>

@@ -1,0 +1,517 @@
+DAILY CHAMPION - HOW THE SITE WORKS
+====================================
+
+A fan-made daily Pokémon battle game in the style of "Daily Red". Each day everyone faces the same
+boss trainer, drafts 6 Pokémon from the same pool of 9, and gets one official attempt. Everything
+runs in the browser. There is no server, no account and no database.
+
+
+CONTENTS
+  1. Files
+  2. The daily cycle (which boss, when it changes)
+  3. Draft pool
+  4. Battle engine (rules and simplifications)
+  5. Abilities, weather and terrain
+  6. Boss behaviour (Normal and Hard)
+  7. Where the Pokémon and move data come from
+  8. Where the trainer teams come from
+  9. Images and animations
+ 10. Saving, stats, sharing and shiny hunting
+ 11. Rebuilding the Pokédex, and hosting
+ 12. Legal and credits
+
+
+------------------------------------------------------------------------------------------------
+1. FILES
+------------------------------------------------------------------------------------------------
+index.html          Page shell: header buttons, modal, script tags.
+styles.css          All styling, including animation and weather overlays.
+moves-gen.js        GENERATED. All 822 moves with their full effects, converted from Showdown's
+                    move data (643 of them are playable). Built by tools/build-dex.js.
+data.js             Hand-written data: type chart, ~260 curated Pokémon, the 187 bosses, ability
+                    assignments and descriptions, and the Hard-mode move swaps.
+dex-all.js          GENERATED. The other ~767 Pokémon (so all 1,025 are present), plus updated
+                    movesets for the curated Pokémon. Built by tools/build-dex.js. Do not edit.
+anim.js             Move animations (draws effects over the arena; contains no game logic).
+game.js             Everything else: daily selection, draft pool, battle engine, abilities, boss logic,
+                    rendering, saving and stats.
+tools/build-dex.js  Script that builds moves-gen.js and dex-all.js from Pokémon Showdown data.
+tools/verify-data.js  Checks all Pokémon and move data against Showdown's data (see section 7).
+tools/README.md     How to re-run the build.
+tools/showdown-data Downloaded Showdown data files. Only needed to rebuild, not to run the site.
+
+Load order matters: moves-gen.js, data.js, dex-all.js, anim.js, then game.js.
+
+
+------------------------------------------------------------------------------------------------
+2. THE DAILY CYCLE
+------------------------------------------------------------------------------------------------
+- A "day" is the player's LOCAL calendar date, so the new boss unlocks at local midnight. The
+  result screen shows a countdown and a preview of tomorrow's boss.
+- Day #1 is 26 Oct 2026. The day number counts up from there.
+- Boss choice: the 187 bosses are put in a shuffled order, seeded so it's the same for everyone,
+  and one is used per day. After all 187 have appeared, a new shuffled order starts. So no boss
+  repeats until every boss has had a turn.
+- Everything "random" that must match between players (boss order, draft pool) uses a seeded
+  random number generator (mulberry32, seeded by a hash of the date text). Battles themselves use
+  normal randomness (damage rolls, crits, misses).
+
+
+------------------------------------------------------------------------------------------------
+3. DRAFT POOL
+------------------------------------------------------------------------------------------------
+Each day has one pool of 9 Pokémon, shared by Normal and Hard. The player picks 6, and pick order
+is party order (the first pick leads).
+
+Who can appear:
+- Base stat total (BST) of 470 or more. Huge Power and Pure Power users are the exception: they
+  only need BST 380 or more (for example Azumarill, Medicham, Diggersby).
+- Must have at least one attacking move.
+- Restricted legendaries and mythicals ("tier L") may appear ONLY when the boss's team contains a
+  legendary or sub-legendary, and at most 1 per pool.
+- Sub-legendaries, Paradox Pokémon and Ultra Beasts ("tier S"): at most 2 per pool.
+- The game prefers 9 different primary types, so the pool has variety.
+
+How the pool is balanced around the boss:
+1. A quick "duel" estimate is computed for each pool Pokémon against each boss Pokémon. Both are
+   built at level 100 with their Hard-mode movesets. For each side it works out how many hits its
+   best move needs to KO the other. That uses the real damage formula, so it includes types, STAB,
+   abilities and accuracy. Fewer hits wins, and on a tie the faster Pokémon wins (Truant counts as
+   acting every other turn). The result is win, even or loss.
+2. A candidate pool is accepted only if ALL of these hold:
+   - every boss Pokémon is beaten by at least 2 of the 9 (an even result counts as half);
+   - the boss's ace (last team slot) has at least 2 outright counters;
+   - no single boss Pokémon beats 7 or more of the 9;
+   - it isn't a walkover: at least one boss Pokémon has 4 or fewer counters, and the pool wins no
+     more than 70% of all matchups.
+3. Up to 300 seeded shuffles are tried and the first fair one is used. If none pass, the pool that
+   breaks the rules by the least is used. The result is the same for everyone on that date.
+4. The draft screen shows a one-line summary ("Every one of X's Pokémon has at least 2 counters in
+   this pool") without revealing which Pokémon they are.
+
+Testing: over a sample year (from 28 Oct 2026), 357 of 365 daily pools passed every rule. The
+other 8 miss by the smallest possible amount (a Dragon-type boss's ace has 1 outright counter
+instead of 2). Remember that the duel
+estimate ignores healing, status, switching and stat boosts, so "fair" does not mean "easy".
+
+Once a day's pool is generated it's saved with the player's run, so later changes to the
+algorithm don't change a day already in progress. Practice battles get their own random,
+boss-aware pool.
+
+
+------------------------------------------------------------------------------------------------
+4. BATTLE ENGINE
+------------------------------------------------------------------------------------------------
+Format: 6 v 6 singles, turn based, Generation 9 rules (the same rules Pokémon Showdown uses).
+Both sides are level 100. The player may switch, which uses their turn, and switches always
+happen before moves.
+
+Stats: every Pokémon has 31 IVs, 85 EVs in each stat and a neutral nature (similar to Showdown's
+random battles). HP = 2*Base + 162. Other stats = 2*Base + 57 (at level 100).
+
+Damage formula (Gen 9, as in the games):
+  base = floor(floor(floor(2*Level/5 + 2) * Power * Atk / Def) / 50) + 2
+  then, in the games' order: weather, critical hit (x1.5), one of 16 random rolls (85% to 100%),
+  STAB (1.5, or 2 with Adaptability), type effectiveness, burn (x0.5 on physical moves, except
+  Facade), screens, then ability and other modifiers. Modifiers are combined in 4096ths and
+  rounded the way the games do it, so the numbers match Showdown's damage calculator.
+
+Turn order: priority bracket first, then Speed (paralysis halves it, and Tailwind, weather,
+abilities and stat stages also apply). Trick Room reverses Speed order inside each priority
+bracket for 5 turns. Exact ties are random. Stall and Mycelium Might act last in their bracket.
+
+Critical hits: stage 0 = 1/24, +1 = 1/8, +2 = 1/2, +3 or more = always. High-crit moves, Focus
+Energy (+2) and Super Luck (+1) add stages. Crits ignore the attacker's negative stat stages, the
+defender's positive ones, and screens. Battle Armor and Shell Armor block them.
+
+Stat stages: -6 to +6 for Attack, Defense, Sp. Atk, Sp. Def and Speed (x(2+n)/2 or x2/(2-n)),
+and for accuracy and evasion (x(3+n)/3 or x3/(3-n)). They reset on switching out (Baton Pass
+keeps them).
+
+PP: real PP values with the maximum PP Ups (x8/5), shown on the move buttons. Pressure makes
+moves aimed at its user cost 2 PP. A Pokémon with no usable moves left uses Struggle (typeless,
+loses 1/4 of its max HP each use).
+
+Status conditions:
+  Burn        1/16 HP per turn, physical damage halved
+  Poison      1/8 HP per turn
+  Toxic       1/16, 2/16, 3/16... per turn (the counter resets on switch-out)
+  Paralysis   Speed halved, 25% chance to be unable to move
+  Sleep       1-3 turns (Rest: exactly 2 turns)
+  Freeze      20% chance to thaw each turn; some Fire moves thaw the user or the target
+  Type immunities apply (Fire can't be burned, Electric can't be paralyzed, Poison and Steel can't
+  be poisoned, Ice can't be frozen, Grass is immune to powder moves), plus ability, terrain,
+  Safeguard and Substitute immunities.
+
+Volatile states (cleared on switching out, shown as small tags under the HP bar):
+  Confusion (2-5 turns, 1/3 chance to hit itself with a 40-power typeless physical attack),
+  flinching (only if the attacker moved first), Substitute, Leech Seed, Taunt, Encore, Disable,
+  Yawn, Perish Song, Destiny Bond, Focus Energy, Aqua Ring, Ingrain, Curse (Ghost type), Salt
+  Cure, partial trapping (Fire Spin, Whirlpool... 4-5 turns), can't-escape trapping, Smack Down.
+
+Every move's full effect list comes from Showdown's move data, including:
+- Every secondary chance, rolled separately (Shadow Ball's 20% Sp. Def drop, Iron Head's 30%
+  flinch, Scald's 30% burn...). Serene Grace doubles the chance; Sheer Force removes the effect
+  and adds 30% power; Shield Dust and Substitute block them.
+- Real contact flags, so Earthquake no longer triggers Rough Skin, but U-turn does.
+- Multi-hit moves: 2-5 hits (35/35/15/15%, or always 5 with Skill Link), fixed 2- and 3-hit moves,
+  Triple Axel's rising power, Population Bomb checking accuracy each hit. Every hit rolls its own
+  critical hit and triggers contact abilities.
+- Two-turn moves (Solar Beam, Meteor Beam, Electro Shot...), with Fly, Dig, Dive, Bounce, Phantom
+  Force and Shadow Force making the user untouchable for that turn except to the moves that can
+  hit it (Thunder vs Fly, Earthquake vs Dig, Surf vs Dive). Recharge moves (Hyper Beam...) skip
+  the user's next turn. Outrage, Petal Dance and Thrash lock the user in for 2-3 turns, then
+  confuse it.
+- Fixed damage (Seismic Toss, Night Shade, Super Fang, Ruination, Endeavor, Final Gambit), damage
+  returned (Counter, Mirror Coat, Metal Burst, Comeuppance), one-hit KO moves (Gen 9 accuracy,
+  Sturdy blocks them) and self-KO moves (Explosion, Memento, Healing Wish...; Damp blocks
+  Explosion-type moves).
+- Variable power: Gyro Ball, Electro Ball, Heavy Slam, Heat Crash, Low Kick, Grass Knot,
+  Eruption, Water Spout, Reversal, Flail, Hex, Venoshock, Stored Power, Weather Ball, Terrain
+  Pulse, Body Press, Foul Play, Facade, Knock Off, Bolt Beak, Fishious Rend, Avalanche, Payback,
+  Last Respects, Rage Fist and more.
+- Conditions: Fake Out and First Impression only on the first turn after coming in, Sucker Punch
+  and Thunderclap fail if the target isn't attacking, Upper Hand, Focus Punch (fails if hit
+  first), Pursuit (doubles on a switching target), Dream Eater, Snore and Sleep Talk.
+- Protect and its variants (Detect, King's Shield, Spiky Shield, Baneful Bunker, Silk Trap,
+  Obstruct, Burning Bulwark) and Endure, with the games' 1/3 chance for each repeated use.
+  Feint-type moves break protection.
+- Accuracy and evasion: stages, weather (Thunder, Hurricane, Blizzard), No Guard, Compound Eyes,
+  Hustle, Keen Eye, Sand Veil, Snow Cloak, Tangled Feet, Wonder Skin. Moves with "--" accuracy
+  never miss. High Jump Kick and Supercell Slam crash on a miss.
+
+Side conditions (shown in a strip on each side of the arena):
+- Stealth Rock (Rock-type damage on entry: 1/8 neutral, up to 1/2 for 4x weak Pokémon), Spikes
+  (up to 3 layers), Toxic Spikes (up to 2; a grounded Poison type removes them), Sticky Web.
+  Flying types, Levitate and Magic Guard avoid the ones they should.
+- Reflect, Light Screen, Aurora Veil (snow only), 5 turns. Brick Break, Psychic Fangs and Raging
+  Bull break them. Infiltrator ignores them and Substitute.
+- Tailwind (4 turns), Safeguard, Mist, Wish, Healing Wish / Lunar Dance.
+- Rapid Spin, Mortal Spin, Defog and Tidy Up clear hazards; Court Change swaps both sides' effects.
+- Future Sight and Doom Desire hit 2 turns later.
+
+Switching moves: U-turn, Volt Switch, Flip Turn, Parting Shot, Teleport, Chilly Reception, Baton
+Pass and Shed Tail switch the user out mid-turn. The player picks who comes in from a prompt; the
+boss picks with its normal switch logic. Roar, Whirlwind, Dragon Tail and Circle Throw drag in a
+random foe (Suction Cups and Ingrain prevent it).
+
+Other status moves: Rest, Pain Split, Haze, Clear Smog, Belly Drum, Fillet Away, Clangorous Soul,
+No Retreat, Psych Up, Heal Bell, Aromatherapy, Strength Sap, Transform, Synthesis / Moonlight /
+Morning Sun (heal more in sun, less in other weather), Shore Up (more in sand), Roost (loses
+Flying type for the turn), Trick Room, weather and terrain moves, and every stat-changing move.
+
+If both sides lose their last Pokémon at the same moment, the side that caused it (Explosion,
+Destiny Bond, Final Gambit...) loses, as in the games.
+
+Hard mode difference: every stat-boosting setup move (Swords Dance, Dragon Dance, Nasty Plot,
+Calm Mind, Shell Smash, etc.) is replaced on EVERY Pokémon, the player's and the boss's, with a
+Pokémon-specific attacking move from the HARD_MOVES table in data.js (or one generated by the
+build script).
+
+What is still NOT modelled:
+- Held items (except Pikachu's Light Ball, which is built in). So Knock Off never gets its item
+  bonus, Acrobatics always has its doubled 110 power, and Trick, Switcheroo, Fling and similar
+  item moves are not used. Return uses its maximum-friendship power (102), as Showdown does.
+- Mega Evolution, Z-Moves, Dynamax and Terastallization (so Tera Blast is never used).
+- Doubles-only effects, infatuation (Attract), and a handful of rarely seen moves that depend on
+  them (Showdown marks these, and the build script never puts them in a set).
+- Alternate forms (regional forms, Rotom's appliance forms, etc.) aren't included except where an
+  ability changes form in battle.
+
+
+------------------------------------------------------------------------------------------------
+5. ABILITIES, WEATHER AND TERRAIN
+------------------------------------------------------------------------------------------------
+About 240 abilities are implemented, and 1,004 of the 1,025 Pokémon have a working ability. Each
+Pokémon gets exactly one ability. The other 21 only have abilities that do nothing in this game
+(item, doubles, Tera or info-only abilities such as Pickup, Cheek Pouch, Illusion, Frisk), so
+they have none. Hover an ability in the game to see its description (ABILITY_INFO in
+data.js).
+
+Groups that are modelled:
+- Entry effects: Intimidate, Download, Trace, Imposter, Intrepid Sword, Slow Start, Neutralizing
+  Gas, weather and terrain setters.
+- Damage boosts and reductions: Huge Power, Adaptability, Technician, Sheer Force, Tough Claws,
+  the "-ate" abilities, Multiscale, Filter, Thick Fat, Fur Coat, Ruin abilities, Auras and more.
+- Immunities and absorption: Levitate, Water/Volt Absorb, Flash Fire, Sap Sipper, Bulletproof,
+  Soundproof, Wonder Guard, Good as Gold, Magic Bounce and more.
+- Reactions to being hit: Rough Skin, Static, Justified, Weak Armor, Anger Point, Berserk, etc.
+- Form changes: Stance Change, Schooling, Shields Down, Zen Mode, Power Construct, Zero to Hero,
+  Forecast, Disguise, Ice Face.
+- Trapping: Shadow Tag, Arena Trap and Magnet Pull. The player's switch buttons are disabled with
+  a note, and the boss can't switch either.
+- Mold Breaker, Teravolt and Turboblaze ignore the defender's ability.
+- Abilities tied to the full move rules: Inner Focus and Steadfast (flinching), Own Tempo and
+  Tangled Feet (confusion), Pressure (PP), Skill Link, Serene Grace, Shield Dust, Stench, Cursed
+  Body, Infiltrator, Damp, Keen Eye, Compound Eyes, Suction Cups, Unseen Fist, Perish Body,
+  Oblivious and Aroma Veil (Taunt and friends), and Magic Bounce reflecting hazards and status.
+
+Weather (rain, harsh sun, sandstorm, snow) lasts 5 turns:
+  Rain: Water x1.5, Fire x0.5, Thunder and Hurricane never miss. Sun: the reverse, and Thunder and
+  Hurricane drop to 50% accuracy. Sand: 1/16 damage per turn to anything that isn't Rock, Ground
+  or Steel, and Rock types get x1.5 Sp. Def. Snow: Ice types get x1.5 Defense, Blizzard never
+  misses. Cloud Nine and Air Lock cancel weather while on the field.
+
+Terrain (Electric, Grassy, Psychic, Misty) lasts 5 turns and affects grounded Pokémon (not Flying
+types or Levitate users):
+  Electric: Electric moves x1.3, no sleep. Grassy: Grass moves x1.3, heals 1/16 each turn,
+  Earthquake halved. Psychic: Psychic moves x1.3, priority moves can't hit grounded targets.
+  Misty: Dragon damage halved, no status conditions.
+
+
+------------------------------------------------------------------------------------------------
+6. BOSS BEHAVIOUR
+------------------------------------------------------------------------------------------------
+The boss makes its own decisions using the rules below. The player controls their own team.
+
+Shared helpers:
+- "Expected damage" of a move = the damage formula at an average roll (0.925) x accuracy,
+  including abilities. A move that would be absorbed (for example a Water move into Water Absorb)
+  scores 0.
+- The boss can see the player's active Pokémon, its moves and ability, and its HP.
+
+NORMAL
+- 30% of the time it picks a completely random move. That's the "slips up" part.
+- Otherwise it scores each move and picks the best:
+  - Attacks: expected damage as a fraction of the target's remaining HP. A move that KOs gets a
+    large bonus, and priority moves get extra when the boss is slower or about to be KO'd.
+    Recoil and self-lowering moves are slightly discouraged.
+  - Healing: used when below ~45% HP and not about to be KO'd.
+  - Status moves: used if the target has no status and isn't immune (sleep rated highest).
+  - Setup moves: used at high HP when the player isn't threatening much.
+  - Support moves get simple rules: hazards while the player has 3+ Pokémon left, screens,
+    Protect when the player is poisoned or seeded, Substitute at high HP, and so on (the same
+    rules as Hard, listed below).
+  - Its random picks skip moves that would do nothing (for example Seismic Toss into a Ghost).
+- It never switches voluntarily, except through moves like U-turn. When a Pokémon faints it
+  sends out the next one in team order.
+
+HARD
+- Predicts that the player will use the move that does the most expected damage to the boss.
+- Move scoring considers turn order (priority and Speed, including abilities and weather):
+  - a guaranteed KO (even on a minimum damage roll) scores highest; a possible KO comes next;
+    moves that 2HKO get a small bonus;
+  - if the player will move first AND KO the boss, attacks that won't land first are almost
+    worthless, so it looks for priority or a switch instead;
+  - recoil at low HP and crash-risk moves are discouraged unless they KO.
+- Status moves are used tactically: sleep when it's safe, burn on physical attackers, paralysis on
+  faster Pokémon, Toxic on bulky ones. Healing is used only when it heals more than the player's
+  predicted hit.
+- Switching: it switches out when it is about to be KO'd and can't KO first, or when it is
+  "walled" (doing under 20% per hit while taking over 35%). It switches to the teammate that takes
+  the predicted hit best and threatens the player most. It won't switch more than twice in a row,
+  only switches 80% of the time it wants to (so it's less predictable), and can't switch while
+  trapped.
+- Lead and replacements: picked by matchup (damage it deals vs damage it takes, plus a speed bonus).
+- Support and tactical moves (both difficulties):
+  - Stealth Rock, Spikes, Toxic Spikes and Sticky Web while the player has 3+ Pokémon left;
+    Defog, Rapid Spin, Court Change or Tidy Up when hazards are on the boss's side;
+  - Reflect or Light Screen to match the player's stronger attacking stat, Tailwind or Trick Room
+    when the boss's team is slower;
+  - Protect when the player is taking poison, Leech Seed or Perish damage, to wait out a Wish, or
+    to gain a Speed Boost; never twice in a row;
+  - Substitute at high HP when the player can't hit hard; Taunt on Pokémon with 2+ status moves;
+    Encore when the player just used a status move;
+  - Roar, Whirlwind or Haze against a boosted Pokémon; Destiny Bond, Memento or Explosion when
+    it is about to be KO'd anyway; Pain Split when the player has much more HP;
+  - Rest and Sleep Talk together, Wish at mid HP, Heal Bell when teammates are statused.
+- Both difficulties respect PP, recharge turns, charging moves, Outrage lock-in, Taunt, Encore
+  and Disable. Fake Out is only chosen on the first turn.
+- Hard also hides the "super effective" hints on the player's move buttons, and every setup move
+  is swapped for an attack (section 4).
+
+
+------------------------------------------------------------------------------------------------
+7. WHERE THE POKÉMON AND MOVE DATA COME FROM
+------------------------------------------------------------------------------------------------
+Two sources:
+
+A) Hand-curated (data.js, ~260 Pokémon)
+   Originally written by hand: base stats, types, and
+   4-move sets modelled on common competitive sets. These cover all boss Pokémon and many popular
+   picks. They have since been CHECKED AGAINST SHOWDOWN'S DATA with tools/verify-data.js, and every
+   mismatch was corrected: 2 base stats, 17 moves a Pokémon couldn't legally learn, 6 illegal
+   Hard-mode swap moves, 2 abilities, and 3 move numbers. Base stats, types, abilities and move
+   legality now all match Showdown. Since the battle-accuracy update, the 200 curated Pokémon
+   that have a Showdown random-battle set use a set picked from it instead (see B), so signature
+   moves are back (Rock Blast and Icicle Spear for Cloyster, Leech Seed and Gyro Ball for
+   Ferrothorn, U-turn for Scizor...). The rest keep their hand-picked sets.
+
+B) Generated (moves-gen.js with every move, and dex-all.js with the remaining ~767 Pokémon)
+   Built by tools/build-dex.js from Pokémon Showdown's public data files:
+     https://play.pokemonshowdown.com/data/pokedex.json   (species, base stats, types, abilities, tags)
+     https://play.pokemonshowdown.com/data/moves.json     (move power, accuracy, type, effects)
+     https://play.pokemonshowdown.com/data/learnsets.json (which moves each Pokémon can learn)
+     smogon/pokemon-showdown repo: data/random-battles/gen9/sets.json (random-battle movepools)
+   For each species not already hand-curated, the script:
+   - converts EVERY move into moves-gen.js with its full effect data: secondary chances, contact
+     and other flags, multi-hit, charge, recharge, lock-in, drain, recoil, crit ratio, fixed
+     damage, PP, volatile effects, side conditions, weather, terrain and switching. Moves with
+     unique rules get a "special" key that a handler in game.js reads. Only moves that need
+     items, Tera or a doubles partner are marked unsupported and never put in a set;
+   - picks 4 moves from the first role of Showdown's Gen 9 random-battle set: its best utility
+     moves first (hazards, recovery, pivots, Protect...), then its strongest same-type and
+     coverage attacks. Species with no random-battle set get strong same-type moves and coverage
+     moves that hit the most new types super-effectively;
+   - picks the first ability the engine implements, in this order: random-battle set abilities,
+     then the species' normal abilities, then its hidden ability. This means some Pokémon don't
+     get their signature ability; for example Darmanitan gets Sheer Force rather than Zen Mode;
+   - picks a Hard-mode replacement for any setup move (its best unused attack);
+   - tags legendaries ("L" = restricted legendary or mythical, "S" = sub-legendary, Paradox or
+     Ultra Beast).
+   - stores every species' weight (kg) for Low Kick / Grass Knot.
+   Base forms only (#1 to #1025). Hand-curated entries always take priority over generated ones.
+   Pokémon with almost no attacks (Ditto, Wobbuffet, Unown) get Return as a placeholder, and they
+   are too weak to appear in the draft anyway.
+
+C) Verification (tools/verify-data.js)
+   Run "node tools/verify-data.js" after any data change. It checks every Pokémon's base stats,
+   types, ability, moves (learnable, including from pre-evolutions) and Hard-mode swap move, and
+   that every move exists in Showdown's data, that no set contains a move the engine can't play,
+   and that every move with special rules has a handler in game.js. It also checks every boss: a
+   valid role, exactly 6 Pokémon that all exist, and unique keys. It exits with an error if
+   anything doesn't match.
+
+
+------------------------------------------------------------------------------------------------
+8. WHERE THE TRAINER TEAMS COME FROM
+------------------------------------------------------------------------------------------------
+There are 187 bosses, all in data.js (the BOSSES list). Each has a role: gym (Gym Leaders, Alola's
+Island Kahunas and Trial Captains), e4 (Elite Four), champion, villain, or rival.
+
+Who is included:
+- Every Gym Leader, Elite Four member and Champion from Kanto to Paldea, plus the Blueberry League
+  (Indigo Disk) and Alola's Trial Captains. A trainer with several roles (Koga, Bruno, Lance, Blue,
+  Larry, Hala, Olivia, Acerola...) has one entry.
+- Villain teams: bosses and their important members - Team Rocket (Giovanni, Archer, Ariana,
+  Proton, Petrel), Magma (Maxie, Tabitha, Courtney), Aqua (Archie, Matt, Shelly), Galactic (Cyrus,
+  Mars, Jupiter, Saturn, Charon), Plasma (Ghetsis, N, Colress, Zinzolin), Flare (Lysandre, Xerosic,
+  Aliana, Bryony, Celosia, Mable), Skull (Guzma, Plumeria), Aether (Lusamine, Faba), Macro Cosmos
+  (Rose, Oleana), Team Star (Giacomo, Mela, Atticus, Ortega, Eri, Penny), plus Volo.
+- Every main-series rival: Silver, Brendan, May, Wally, Trace (Let's Go), Barry, Dawn, Lucas,
+  Bianca, Hugh, Shauna, Tierno, Trevor, Calem, Serena, Gladion, Hop, Bede, Arven and Carmine, plus
+  rivals who are also Champions or Gym Leaders (Blue, Cheren, Hau, Marnie, Nemona, Kieran) and N.
+  Where a rival's ace depends on the player's starter, one version was picked (for example May uses
+  Blaziken and Brendan Swampert).
+
+How the teams were built:
+- The ~125 trainers added in the full-roster and rival updates use their STRONGEST CANON TEAM from Bulbapedia:
+  the highest-level team listed on each trainer's page (usually a rematch, the Pokémon World
+  Tournament, Champion rematches or post-game battles). It was read automatically from the team
+  tables in the built-in browser. Then:
+  - everything is fully evolved (Nosepass -> Probopass, Golbat -> Crobat, ...);
+  - regional forms become base forms because only base forms exist here (Alolan Persian ->
+    Persian; Galarian Darmanitan and Alolan Ninetales were swapped for Glaceon);
+  - short teams are filled to 6 with Pokémon that fit the trainer's type or theme (for example
+    most villain admins only had 2-3 Pokémon in the games).
+  - The ace (signature or highest-level Pokémon) is last.
+- Charon never battles in the games, so his team is themed on his Rotom and Heatran research.
+- The original 60 bosses were written earlier and are inspired by the characters' best-known
+  teams rather than read from Bulbapedia. For example Lance has Salamence, and Kukui has both
+  Primarina and Incineroar.
+- Movesets are the same as everyone else's (section 7). Bosses don't get special sets.
+- The quotes are ORIGINAL short lines written in each character's style, not lines from the games.
+- Legendaries on boss teams: Zapdos and Moltres (Lt. Surge, Blaine), Groudon (Maxie), Kyogre
+  (Archie), Darkrai (Cyrus), Giratina (Volo), Zekrom (N), Yveltal (Lysandre), Heatran (Charon),
+  Zamazenta (Hop). On those days the draft pool may include one legendary (section 3).
+- Trainer sprites come from Pokémon Showdown (Arven uses "arven-v"). Aliana and Celosia have none there, so they show a
+  Poké Ball silhouette.
+- The 👥 button in the header lists every boss and team by region, with filters for Gym Leader,
+  Elite Four, Champion, Villain and Rival, and a Practice button on each.
+
+
+------------------------------------------------------------------------------------------------
+9. IMAGES AND ANIMATIONS
+------------------------------------------------------------------------------------------------
+All images are hotlinked (loaded from the original sites, not stored in this folder):
+- Pokémon sprites: PokéAPI's sprite repository
+    https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/<dex#>.png
+    and .../back/<dex#>.png for your side. Newer Pokémon without a back sprite fall back to a
+    mirrored front sprite.
+- Trainer sprites: Pokémon Showdown, https://play.pokemonshowdown.com/sprites/trainers/<name>.png
+  (a few bosses use a different file name, set by the "sprite" field in BOSSES).
+- Move effect images: Pokémon Showdown, https://play.pokemonshowdown.com/fx/<name>.png
+
+Move animations (anim.js) are written for this site and do NOT reuse Showdown's animation code.
+Each move gets an animation chosen from its type, category and flags:
+  - special moves: a projectile, or a beam for big (110+ power) and pulse moves;
+  - physical moves: a lunge and impact, with a fist for punches, closing jaws for bites, a claw
+    for slicing moves, and a quick dash for priority moves;
+  - Ground moves shake the screen, Rock moves drop rocks, and sound moves send out rings;
+  - status moves swirl around the target, and setup or healing moves make the user glow and
+    sparkle;
+  - stat changes show arrows, a new status shows a coloured pulse, and weather shows an overlay.
+They speed up at 2×, are skipped at 4×, and can be turned off with the ✨ button.
+
+
+------------------------------------------------------------------------------------------------
+10. SAVING, STATS, SHARING AND SHINY HUNTING
+------------------------------------------------------------------------------------------------
+- Everything is stored in the browser's localStorage under the key "dailyChampion.v1". Nothing
+  is sent anywhere. Clearing site data, or using another browser or device, starts fresh.
+- One official attempt per day. The chosen difficulty is locked once the battle starts.
+- Progress is saved at the end of every turn, so closing the tab and coming back resumes the
+  battle (any turn that was mid-way restarts from its beginning).
+- Practice battles (the same boss with a new draft, a random boss, or any boss from the 👥 list)
+  are never saved and never count toward stats.
+- Stats: games played, win rate, current and best streak (consecutive days won), how many
+  Pokémon were left on each win, wins by difficulty, and the last 20 results.
+- Share text (copied to the clipboard) looks like:
+    Daily Champion #3 🏆 vs Cynthia
+    Hard · 24 turns · 3/6 left
+    Me:   🟩🟩🟥🟩🟥🟥
+    Boss: 💀💀💀💀💀💀
+- Settings (also in localStorage): battle speed (1×/2×/4×) and animations on/off.
+
+Shiny hunting and the Shiny Dex:
+- When a new daily run is created, each of the 9 draft cards rolls a 1 in 100 chance (about 8.6%
+  per day that at least one hits). On a hit, the player gets a BONUS 10th card: a shiny Pokémon
+  picked at random from ALL 1,025 species. That includes weak and unevolved Pokémon and
+  legendaries that never appear in the normal pool. The shared 9 cards stay the same for
+  everyone; only the bonus card is personal.
+- The roll uses normal randomness (not the date seed), so each player's luck is their own. It is
+  saved with the day, so reloading never re-rolls. It never picks a Pokémon already in that day's
+  pool, and it re-rolls up to 3 times to avoid ones already in your Shiny Dex.
+- To collect it, put the shiny in your team of 6 and WIN the daily battle (it doesn't have to
+  survive). It then goes into the Shiny Dex with the date, boss and difficulty. Lose, and it "got
+  away". Drafting a weak shiny is the challenge: you have to win while carrying it.
+- Shinies only appear in the official daily battle, never in practice.
+- Shiny sprites come from PokéAPI (sprites/pokemon/shiny/<dex#>.png and back/shiny/...). A gold
+  sparkle plays when a shiny is sent out.
+- The Shiny Dex (📖 button, also linked from Stats and the result screen) shows all 1,025 species in
+  dex order, with generation tabs and a "Collected only" filter. Collected ones show in shiny
+  colours; the rest are silhouettes. It is saved in localStorage as "shinies".
+- The result share text adds "✨ Shiny caught: <name>" when you catch one.
+
+
+------------------------------------------------------------------------------------------------
+11. REBUILDING THE POKÉDEX, AND HOSTING
+------------------------------------------------------------------------------------------------
+Rebuild moves-gen.js and dex-all.js after changing abilities, the move converter or the Showdown data:
+  1. Download the four Showdown files listed in section 7 into tools/showdown-data/
+     (sets.json saved as sets9.json).
+  2. node tools/build-dex.js
+  3. node tools/verify-data.js   (should print "All checks passed.")
+The build script reads data.js to know which moves, Pokémon and abilities already exist, so curated data
+is never overwritten.
+
+Running locally: any static file server works, for example
+  python -m http.server 5174
+then open http://localhost:5174. Opening index.html directly from disk also mostly works.
+
+Hosting: it's a plain static site (HTML/CSS/JS), so GitHub Pages, Netlify, Cloudflare Pages and
+similar all work. Upload index.html, styles.css, moves-gen.js, data.js, dex-all.js, anim.js and game.js. The
+tools/ folder is not needed online.
+
+
+------------------------------------------------------------------------------------------------
+12. LEGAL AND CREDITS
+------------------------------------------------------------------------------------------------
+- Pokémon, its names and its artwork are © Nintendo / Creatures Inc. / GAME FREAK inc. This is an
+  unofficial, non-commercial fan project. Keep it free and ad-free; fan sites that make money are
+  the ones most likely to receive takedowns.
+- Data: Pokémon Showdown (smogon/pokemon-showdown, MIT licensed). Sprites: PokéAPI and Pokémon
+  Showdown. Effect images: Pokémon Showdown.
+- The Showdown battle client (which contains its official animations) is AGPL-3.0 licensed. None
+  of its code is copied here; only its public data files and images are used.
+- Inspired by "Daily Red" (the original daily battle against Red).
