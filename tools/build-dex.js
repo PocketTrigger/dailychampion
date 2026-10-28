@@ -40,12 +40,12 @@ const SPECIAL = new Set(('return frustration acrobatics grassknot lowkick heavys
   'perishsong wish healingwish lunardance synthesis morningsun moonlight shoreup roost futuresight doomdesire ' +
   'brickbreak psychicfangs ragingbull steelbeam mindblown chloroblast struggle ficklebeam geomancy meteorbeam ' +
   'electroshot skullbash spiritshackle anchorshot thousandwaves jawlock smackdown auroraveil charge shedtail ' +
-  'icespinner filletaway clangoroussoul noretreat bodypress foulplay knockoff seismictoss nightshade').split(' '));
+  'icespinner filletaway clangoroussoul noretreat bodypress foulplay knockoff seismictoss nightshade ivycudgel').split(' '));
 
 // Moves that need mechanics this game doesn't have (items, doubles, move-calling...)
 const BAN = new Set(('poltergeist fling naturalgift belch lastresort steelroller magnitude present psywave bide uproar ' +
   'rollout iceball furycutter echoedvoice round spitup swallow stockpile punishment trumpcard beatup judgment ' +
-  'multiattack technoblast revelationdance ivycudgel terablast terastarstorm aurawheel photongeyser shellsidearm ' +
+  'multiattack technoblast revelationdance terablast terastarstorm aurawheel photongeyser shellsidearm ' +
   'thousandarrows synchronoise shelltrap beakblast skydrop alluringvoice burningjealousy lashout ceaselessedge ' +
   'stoneaxe syrupbomb orderup pollenpuff purify floralhealing healpulse lifedew junglehealing spite trick switcheroo ' +
   'bestow skillswap roleplay entrainment simplebeam worryseed gastroacid coreenforcer soak magicpowder forestscurse ' +
@@ -239,6 +239,8 @@ const usable = n => MOVES[n] && !MOVES[n].unsupported;
 
 function learnable(id) {
   const out = new Set();
+  const own = learnsets[id] && learnsets[id].learnset, sp0 = pokedex[id];
+  if (sp0 && sp0.forme && (!own || Object.keys(own).length < 10)) for (const k of learnable(toID(sp0.baseSpecies))) out.add(k);
   for (let cur = id; cur; ) {
     const ls = learnsets[cur] && learnsets[cur].learnset;
     if (ls) for (const k of Object.keys(ls)) out.add(k);
@@ -251,11 +253,17 @@ const effOn = (type, defType) => { const x = (CHART[type] || {})[defType]; retur
 const avgHits = mv => Array.isArray(mv.multi) ? (mv.multi[1] === 5 ? 3.1 : (mv.multi[0] + mv.multi[1]) / 2) : (mv.multi || 1);
 const effPower = mv => mv.fixed ? 90 : mv.ohko ? 60 : !mv.power ? 80 : mv.power * avgHits(mv);
 
+// Moves whose type depends on the user's form
+const FORM_MOVE_TYPE = {
+  ivycudgel: { 'Ogerpon-Wellspring': 'Water', 'Ogerpon-Hearthflame': 'Fire', 'Ogerpon-Cornerstone': 'Rock' },
+  ragingbull: { 'Tauros-Paldea-Combat': 'Fighting', 'Tauros-Paldea-Blaze': 'Fire', 'Tauros-Paldea-Aqua': 'Water' }
+};
 function pickMoves(sp, id) {
   const st = sp.baseStats, types = sp.types, best = Math.max(st.atk, st.spa);
+  const tOf = mv => (FORM_MOVE_TYPE[mv.special] || {})[sp.name] || mv.type;
   const value = mv => {
     if (mv.cat === 'x') return 0;
-    let v = effPower(mv) * (mv.acc ? mv.acc / 100 : 1) * (types.includes(mv.type) ? 1.5 : 1);
+    let v = effPower(mv) * (mv.acc ? mv.acc / 100 : 1) * (types.includes(tOf(mv)) ? 1.5 : 1);
     v *= (mv.cat === 'p' ? st.atk : st.spa) / best;
     if (mv.prio > 0) v *= 0.7;
     if (mv.recoil) v *= 0.92;
@@ -263,6 +271,7 @@ function pickMoves(sp, id) {
     if (mv.recharge || mv.charge && !mv.invuln) v *= 0.55;
     if (mv.selfKO) v *= 0.3;
     if (mv.drain) v *= 1.05;
+    if (['focuspunch', 'dreameater', 'snore'].includes(mv.special)) v *= 0.25;
     if (mv.pivot) v *= 1.1;
     if (effPower(mv) < 55 && !(mv.prio > 0) && !mv.pivot) v *= 0.3;
     return v;
@@ -289,10 +298,10 @@ function pickMoves(sp, id) {
       let pick = null, top = 0;
       for (const m of list) {
         if (chosen.includes(m) || m.cat === 'x') continue;
-        const dmgTypes = chosen.filter(c => c.cat !== 'x').map(c => c.type);
+        const dmgTypes = chosen.filter(c => c.cat !== 'x').map(tOf);
         let s = value(m);
-        if (dmgTypes.includes(m.type)) s *= 0.35;
-        const newSE = TYPES.filter(t => effOn(m.type, t) > 1 && !dmgTypes.some(dt => effOn(dt, t) > 1)).length;
+        if (dmgTypes.includes(tOf(m))) s *= 0.35;
+        const newSE = TYPES.filter(t => effOn(tOf(m), t) > 1 && !dmgTypes.some(dt => effOn(dt, t) > 1)).length;
         s *= 1 + 0.12 * newSE;
         if (s > top) { top = s; pick = m; }
       }
@@ -321,14 +330,43 @@ function pickAbility(sp, id) {
   return cands.find(a => ABILITY_INFO[a]) || null;
 }
 
+// Alternate forms that are really different Pokémon: different types or base stats from the base
+// species. Leaves out Mega, Gmax, Totem and other battle-only forms (abilities handle those),
+// cosmetic forms, size variants, and Arceus / Silvally types (their abilities aren't modelled).
+const FORM_SKIP = /Mega|Gmax|Totem|Primal|Starter|Cosplay|Eternamax|Neutral|Eternal|Spiky|Small|Large|Super|Roaming/;
+const FORM_EXTRA = ['Zacian-Crowned', 'Zamazenta-Crowned'];  // battle-only in Showdown; the item is built in here
+function isPlayableForm(sp) {
+  if (!sp.forme || !(sp.num > 0 && sp.num <= 1025)) return false;
+  if (FORM_EXTRA.includes(sp.name)) return true;
+  if (sp.battleOnly || FORM_SKIP.test(sp.forme) || sp.num === 25 || sp.num === 493 || sp.num === 773) return false;
+  const base = pokedex[toID(sp.baseSpecies)];
+  if (!sp.types || !base) return false;
+  return sp.types.join() !== base.types.join() || JSON.stringify(sp.baseStats) !== JSON.stringify(base.baseStats);
+}
+// PokeAPI numbers forms from 10001 up; most names match Showdown's once lowercased
+const POKEAPI = JSON.parse(fs.readFileSync(path.join(SRC, 'pokeapi-forms.json'), 'utf8'));
+const SPRITE_ALIAS = { 'Darmanitan-Galar': 'darmanitan-galar-standard', 'Necrozma-Dusk-Mane': 'necrozma-dusk', 'Necrozma-Dawn-Wings': 'necrozma-dawn',
+  'Zygarde-10%': 'zygarde-10', 'Tauros-Paldea-Combat': 'tauros-paldea-combat-breed', 'Tauros-Paldea-Blaze': 'tauros-paldea-blaze-breed',
+  'Tauros-Paldea-Aqua': 'tauros-paldea-aqua-breed', 'Ogerpon-Wellspring': 'ogerpon-wellspring-mask', 'Ogerpon-Hearthflame': 'ogerpon-hearthflame-mask',
+  'Ogerpon-Cornerstone': 'ogerpon-cornerstone-mask' };
+function spriteId(name) {
+  const key = SPRITE_ALIAS[name] || name.toLowerCase().replace(/-f$/, '-female').replace(/['’.%]/g, '').replace(/ /g, '-').replace(/--+/g, '-');
+  if (!POKEAPI[key]) throw new Error(`No PokeAPI sprite for ${name} (${key})`);
+  return POKEAPI[key];
+}
+const tierOf = sp => {
+  const tags = sp.tags || (pokedex[toID(sp.baseSpecies)] || {}).tags || [];
+  return tags.includes('Restricted Legendary') || tags.includes('Mythical') ? 'L'
+    : tags.some(t => ['Sub-Legendary', 'Paradox', 'Ultra Beast'].includes(t)) ? 'S' : 0;
+};
+
 const curatedByNum = new Map(Object.values(DEX).map(s => [s.id, s]));
 const rows = [], curatedSets = {};
 for (const [id, sp] of Object.entries(pokedex)) {
-  if (!(sp.num > 0 && sp.num <= 1025) || sp.forme) continue;
-  const tags = sp.tags || [];
-  const tier = tags.includes('Restricted Legendary') || tags.includes('Mythical') ? 'L'
-    : tags.some(t => ['Sub-Legendary', 'Paradox', 'Ultra Beast'].includes(t)) ? 'S' : 0;
-  const cur = curatedByNum.get(sp.num);
+  const form = isPlayableForm(sp);
+  if (!(sp.num > 0 && sp.num <= 1025) || (sp.forme && !form)) continue;
+  const tier = tierOf(sp);
+  const cur = form ? null : curatedByNum.get(sp.num);
   if (cur) {
     // Curated Pokémon keep their hand-written set unless Showdown has a random-battle set for them
     if (sets[id]) curatedSets[cur.name] = pickMoves(sp, id);
@@ -336,17 +374,18 @@ for (const [id, sp] of Object.entries(pokedex)) {
   }
   const b = sp.baseStats;
   const { moves, hard } = pickMoves(sp, id);
-  rows.push([sp.name, sp.num, sp.types.join('/'), [b.hp, b.atk, b.def, b.spa, b.spd, b.spe], moves, pickAbility(sp, id) || 0, hard || 0, tier]);
+  rows.push([sp.name, sp.num, sp.types.join('/'), [b.hp, b.atk, b.def, b.spa, b.spd, b.spe], moves, pickAbility(sp, id) || 0, hard || 0, tier, form ? spriteId(sp.name) : 0]);
 }
-rows.sort((a, b) => a[1] - b[1]);
+rows.sort((a, b) => a[1] - b[1] || a[8] - b[8]);
 
 const weights = {};
-for (const [id, sp] of Object.entries(pokedex)) if (sp.num > 0 && sp.num <= 1025 && !sp.forme) weights[toID(sp.name)] = sp.weightkg;
+for (const [id, sp] of Object.entries(pokedex)) if (sp.num > 0 && sp.num <= 1025 && (!sp.forme || isPlayableForm(sp))) weights[toID(sp.name)] = sp.weightkg;
 
 const out = `// GENERATED by tools/build-dex.js from Pokémon Showdown data. Do not edit by hand.
 // Adds every species not hand-curated in data.js, and Showdown random-battle movesets for curated ones.
 (function () {
-  // [name, dex #, types, base stats, moves, ability, hard-mode move, tier (L legendary / S sub-legendary)]
+  // [name, dex #, types, base stats, moves, ability, hard-mode move, tier (L legendary / S sub-legendary),
+  //  sprite # for alternate forms (PokeAPI numbers them from 10001)]
   const GEN_DEX = [
 ${rows.map(r => '    ' + JSON.stringify(r)).join(',\n')}
   ];
@@ -354,9 +393,10 @@ ${rows.map(r => '    ' + JSON.stringify(r)).join(',\n')}
   const CURATED_SETS = ${JSON.stringify(curatedSets)};
   // Weight in kg for every species, keyed by lowercase name without symbols
   const GEN_WT = ${JSON.stringify(weights)};
-  for (const [name, id, types, stats, moves, ability, hard, tier] of GEN_DEX) {
+  for (const [name, id, types, stats, moves, ability, hard, tier, spr] of GEN_DEX) {
     if (DEX[name]) continue;
     DEX[name] = { name, id, types: types.split('/'), stats, moves, leg: tier === 'L', tier: tier || null };
+    if (spr) { DEX[name].spr = spr; DEX[name].form = true; }
     if (ability) ABILITIES[name] = ability;
     if (hard) HARD_MOVES[name] = hard;
   }
@@ -370,4 +410,4 @@ ${rows.map(r => '    ' + JSON.stringify(r)).join(',\n')}
 `;
 fs.writeFileSync(path.join(ROOT, 'dex-all.js'), out);
 const nMoves = Object.keys(MOVES).length, nOk = Object.values(MOVES).filter(m => !m.unsupported).length;
-console.log(`moves ${nMoves} (${nOk} supported), generated species ${rows.length}, curated sets from Showdown ${Object.keys(curatedSets).length}`);
+console.log(`moves ${nMoves} (${nOk} supported), generated species ${rows.length} (${rows.filter(r => r[8]).length} alternate forms), curated sets from Showdown ${Object.keys(curatedSets).length}`);

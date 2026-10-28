@@ -320,7 +320,7 @@ const BOSSES = [
   { key: 'lysandre', name: 'Lysandre', title: 'Team Flare Boss', place: 'Lysandre Labs', region: 'Kalos', color: '#c4361c',
     quote: 'The world will be beautiful. And you will not be in it.', team: ['Mienshao', 'Honchkrow', 'Pyroar', 'Gyarados', 'Weavile', 'Yveltal'] },
   { key: 'kukui', name: 'Kukui', title: 'Champion', place: 'Mount Lanakila', region: 'Alola', color: '#d3812a',
-    quote: "Woo! Let's make this battle one for the ages, cousin!", team: ['Lycanroc', 'Braviary', 'Magnezone', 'Snorlax', 'Primarina', 'Incineroar'] },
+    quote: "Woo! Let's make this battle one for the ages, cousin!", team: ['Lycanroc', 'Ninetales-Alola', 'Braviary', 'Magnezone', 'Snorlax', 'Incineroar'] },
   { key: 'leon', name: 'Leon', title: 'Champion', place: 'Wyndon Stadium', region: 'Galar', color: '#7a1f3d',
     quote: "Let's have a champion time!", team: ['Dragapult', 'Haxorus', 'Seismitoad', 'Rhyperior', 'Cinderace', 'Charizard'] },
   { key: 'raihan', name: 'Raihan', title: 'Gym Leader', place: 'Hammerlocke Gym', region: 'Galar', color: '#2d6a6a',
@@ -356,7 +356,7 @@ const BOSSES = [
   { key: 'flint', name: 'Flint', title: 'Elite Four', place: 'Pokémon League', region: 'Sinnoh', color: '#e0562b',
     quote: "Let's get fired up! Burn bright or burn out!", team: ['Flareon', 'Rapidash', 'Houndoom', 'Magmortar', 'Arcanine', 'Infernape'] },
   { key: 'volo', name: 'Volo', title: 'Ginkgo Guild', place: 'Temple of Sinnoh', region: 'Hisui', color: '#b8a26a',
-    quote: 'Oh, I am so glad you came. Now… let us see what you are truly made of.', team: ['Spiritomb', 'Roserade', 'Togekiss', 'Lucario', 'Garchomp', 'Giratina'] },
+    quote: 'Oh, I am so glad you came. Now… let us see what you are truly made of.', team: ['Roserade', 'Togekiss', 'Arcanine-Hisui', 'Lucario', 'Garchomp', 'Giratina-Origin'] },
   { key: 'alder', name: 'Alder', title: 'Champion', place: 'Pokémon League', region: 'Unova', color: '#b4532b',
     quote: "Battling is about the bonds you share. Let's feel the heat!", team: ['Accelgor', 'Bouffalant', 'Druddigon', 'Vanilluxe', 'Escavalier', 'Volcarona'] },
   { key: 'n', name: 'N', title: 'King of Team Plasma', place: "N's Castle", region: 'Unova', color: '#4b8a5a',
@@ -483,7 +483,7 @@ B('marlon', 'Marlon', 'Gym Leader', 'Humilau Gym', 'Unova', 'gym', '#2a8ac0', ['
 B('shauntal', 'Shauntal', 'Elite Four', 'Pokémon League', 'Unova', 'e4', '#6a4a8a', ['Cofagrigus', 'Gengar', 'Froslass', 'Drifblim', 'Golurk', 'Chandelure'], 'Excuse me, I was writing. Our battle will make an excellent chapter.');
 B('caitlin', 'Caitlin', 'Elite Four', 'Pokémon League', 'Unova', 'e4', '#c06ab0', ['Musharna', 'Alakazam', 'Gothitelle', 'Gallade', 'Reuniclus', 'Metagross'], 'You woke me from my rest. Very well, show me a battle worth staying awake for.');
 B('marshal', 'Marshal', 'Elite Four', 'Pokémon League', 'Unova', 'e4', '#a04a2a', ['Throh', 'Sawk', 'Lucario', 'Mienshao', 'Machamp', 'Conkeldurr'], 'I am Alder\'s student. Show me your fighting spirit, with everything you have!');
-B('colress', 'Colress', 'Team Plasma Boss', 'Plasma Frigate', 'Unova', 'villain', '#3a8a9a', ['Porygon-Z', 'Rotom', 'Metagross', 'Beheeyem', 'Magnezone', 'Klinklang'], "I want to unlock the full potential of Pokémon. You'll make a fine experiment.");
+B('colress', 'Colress', 'Team Plasma Boss', 'Plasma Frigate', 'Unova', 'villain', '#3a8a9a', ['Porygon-Z', 'Rotom-Wash', 'Metagross', 'Beheeyem', 'Magnezone', 'Klinklang'], "I want to unlock the full potential of Pokémon. You'll make a fine experiment.");
 B('zinzolin', 'Zinzolin', 'Seven Sages', 'Opelucid City', 'Unova', 'villain', '#4a5a9a', ['Liepard', 'Watchog', 'Scolipede', 'Cryogonal', 'Froslass', 'Weavile'], "Brrr. You've come all this way only to be frozen in your tracks.");
 // Kalos / Team Flare
 B('viola', 'Viola', 'Gym Leader', 'Santalune Gym', 'Kalos', 'gym', '#8ab03a', ['Beautifly', 'Pinsir', 'Scolipede', 'Heracross', 'Masquerain', 'Vivillon'], "Whether it's victory or defeat, I'll capture this battle in a perfect shot!");
@@ -504,38 +504,38 @@ B('celosia', 'Celosia', 'Team Flare Admin', 'Team Flare Secret HQ', 'Kalos', 'vi
 B('mable', 'Mable', 'Team Flare Admin', 'Team Flare Secret HQ', 'Kalos', 'villain', '#b04a2a', ['Mightyena', 'Liepard', 'Bisharp', 'Pyroar', 'Houndoom', 'Weavile'], 'Team Flare makes the future. You are just in the way of it.');
 // Alola / Team Skull / Aether
 B('hala', 'Hala', 'Island Kahuna', "Melemele Island", 'Alola', 'gym', '#b05a2a', ['Hariyama', 'Primeape', 'Bewear', 'Poliwrath', 'Machamp', 'Crabominable'], "Ho ho! Let's see how the island's challenge has made you grow!");
-B('olivia', 'Olivia', 'Island Kahuna', "Akala Island", 'Alola', 'gym', '#c05a7a', ['Carbink', 'Armaldo', 'Cradily', 'Gigalith', 'Probopass', 'Lycanroc'], 'My rock Pokémon are as hard as diamonds. Ready to get crushed?');
-B('nanu', 'Nanu', 'Island Kahuna', "Ula'ula Island", 'Alola', 'gym', '#4a4a5a', ['Sableye', 'Krookodile', 'Honchkrow', 'Absol', 'Houndoom', 'Persian'], "Ugh. Fine. Let's get this over with so I can get back to my cats.");
-B('hapu', 'Hapu', 'Island Kahuna', "Poni Island", 'Alola', 'gym', '#8a6a3a', ['Dugtrio', 'Golurk', 'Gastrodon', 'Krookodile', 'Flygon', 'Mudsdale'], 'The land of Poni is harsh but honest. My Pokémon carry its strength.');
+B('olivia', 'Olivia', 'Island Kahuna', "Akala Island", 'Alola', 'gym', '#c05a7a', ['Golem-Alola', 'Armaldo', 'Cradily', 'Gigalith', 'Probopass', 'Lycanroc-Midnight'], 'My rock Pokémon are as hard as diamonds. Ready to get crushed?');
+B('nanu', 'Nanu', 'Island Kahuna', "Ula'ula Island", 'Alola', 'gym', '#4a4a5a', ['Sableye', 'Krookodile', 'Honchkrow', 'Absol', 'Houndoom', 'Persian-Alola'], "Ugh. Fine. Let's get this over with so I can get back to my cats.");
+B('hapu', 'Hapu', 'Island Kahuna', "Poni Island", 'Alola', 'gym', '#8a6a3a', ['Dugtrio-Alola', 'Golurk', 'Gastrodon', 'Krookodile', 'Flygon', 'Mudsdale'], 'The land of Poni is harsh but honest. My Pokémon carry its strength.');
 B('ilima', 'Ilima', 'Trial Captain', 'Verdant Cavern', 'Alola', 'gym', '#a08a6a', ['Smeargle', 'Komala', 'Kangaskhan', 'Bewear', 'Snorlax', 'Gumshoos'], 'Normal Pokémon can do anything. Let me show you how versatile they are!');
 B('lana', 'Lana', 'Trial Captain', 'Brooklet Hill', 'Alola', 'gym', '#3a9ad0', ['Lapras', 'Toxapex', 'Wishiwashi', 'Lanturn', 'Cloyster', 'Araquanid'], "I'm... not lying this time. My water Pokémon really are this strong.");
-B('kiawe', 'Kiawe', 'Trial Captain', 'Wela Volcano Park', 'Alola', 'gym', '#d04a2a', ['Turtonator', 'Salazzle', 'Magmortar', 'Arcanine', 'Talonflame', 'Marowak'], 'Fire burns in the heart of every dancer. Feel the heat of my dance!');
+B('kiawe', 'Kiawe', 'Trial Captain', 'Wela Volcano Park', 'Alola', 'gym', '#d04a2a', ['Turtonator', 'Salazzle', 'Magmortar', 'Arcanine', 'Talonflame', 'Marowak-Alola'], 'Fire burns in the heart of every dancer. Feel the heat of my dance!');
 B('mallow', 'Mallow', 'Trial Captain', 'Lush Jungle', 'Alola', 'gym', '#5ab05a', ['Comfey', 'Gogoat', 'Lurantis', 'Trevenant', 'Shiinotic', 'Tsareena'], "I've cooked up a battle with all the freshest ingredients. Dig in!");
-B('sophocles', 'Sophocles', 'Trial Captain', 'Hokulani Observatory', 'Alola', 'gym', '#e0b03a', ['Raichu', 'Togedemaru', 'Magnezone', 'Electivire', 'Golem', 'Vikavolt'], "I programmed this battle down to the last volt. Let's run the test!");
+B('sophocles', 'Sophocles', 'Trial Captain', 'Hokulani Observatory', 'Alola', 'gym', '#e0b03a', ['Raichu', 'Togedemaru', 'Magnezone', 'Electivire', 'Golem-Alola', 'Vikavolt'], "I programmed this battle down to the last volt. Let's run the test!");
 B('mina', 'Mina', 'Trial Captain', 'Vast Poni Canyon', 'Alola', 'gym', '#e07ab0', ['Mr. Mime', 'Klefki', 'Granbull', 'Shiinotic', 'Wigglytuff', 'Ribombee'], "Oh, you want to battle? Sure. I'll paint something pretty with it.");
 B('kahili', 'Kahili', 'Elite Four', 'Pokémon League', 'Alola', 'e4', '#6ab0c0', ['Skarmory', 'Braviary', 'Hawlucha', 'Oricorio', 'Mandibuzz', 'Toucannon'], "A golfer reads the wind. A trainer reads the battle. I'm both.");
-B('molayne', 'Molayne', 'Elite Four', 'Pokémon League', 'Alola', 'e4', '#8a9aa8', ['Skarmory', 'Klefki', 'Bisharp', 'Magnezone', 'Metagross', 'Dugtrio'], "Let's see how your Pokémon hold up against some real steel.");
-B('hau', 'Hau', 'Champion', 'Pokémon League', 'Alola', 'champion', '#e0a03a', ['Raichu', 'Tauros', 'Noivern', 'Crabominable', 'Vaporeon', 'Decidueye'], "I'm defending the title now! Let's have the most fun battle ever!");
-B('plumeria', 'Plumeria', 'Team Skull Admin', 'Po Town', 'Alola', 'villain', '#8a3aa0', ['Garbodor', 'Gengar', 'Muk', 'Crobat', 'Toxapex', 'Salazzle'], "You messed with my grunts. Now you deal with their big sis.");
-B('faba', 'Faba', 'Aether Branch Chief', 'Aether Paradise', 'Alola', 'villain', '#c0b05a', ['Claydol', 'Bruxish', 'Alakazam', 'Slowbro', 'Granbull', 'Hypno'], 'I am the Aether Foundation\'s greatest mind. You are merely an inconvenience.');
+B('molayne', 'Molayne', 'Elite Four', 'Pokémon League', 'Alola', 'e4', '#8a9aa8', ['Skarmory', 'Klefki', 'Bisharp', 'Magnezone', 'Metagross', 'Dugtrio-Alola'], "Let's see how your Pokémon hold up against some real steel.");
+B('hau', 'Hau', 'Champion', 'Pokémon League', 'Alola', 'champion', '#e0a03a', ['Raichu-Alola', 'Tauros', 'Noivern', 'Crabominable', 'Vaporeon', 'Decidueye'], "I'm defending the title now! Let's have the most fun battle ever!");
+B('plumeria', 'Plumeria', 'Team Skull Admin', 'Po Town', 'Alola', 'villain', '#8a3aa0', ['Garbodor', 'Gengar', 'Muk-Alola', 'Crobat', 'Toxapex', 'Salazzle'], "You messed with my grunts. Now you deal with their big sis.");
+B('faba', 'Faba', 'Aether Branch Chief', 'Aether Paradise', 'Alola', 'villain', '#c0b05a', ['Claydol', 'Bruxish', 'Raichu-Alola', 'Alakazam', 'Slowbro', 'Hypno'], 'I am the Aether Foundation\'s greatest mind. You are merely an inconvenience.');
 // Galar / Macro Cosmos
 B('milo', 'Milo', 'Gym Leader', 'Turffield Stadium', 'Galar', 'gym', '#6ab04a', ['Shiftry', 'Eldegoss', 'Tsareena', 'Cherrim', 'Ludicolo', 'Flapple'], "You look like a fine sprout! Let's see how tall you've grown!");
 B('allister', 'Allister', 'Gym Leader', 'Stow-on-Side Stadium', 'Galar', 'gym', '#5a4a8a', ['Dusknoir', 'Chandelure', 'Cursola', 'Polteageist', 'Mimikyu', 'Gengar'], '...Um... the ghosts said you were strong. I hope... they were wrong.');
-B('opal', 'Opal', 'Gym Leader', 'Ballonlea Stadium', 'Galar', 'gym', '#d07ab0', ['Mawile', 'Granbull', 'Weezing', 'Togekiss', 'Hatterene', 'Alcremie'], "Pop quiz, dearie! What's my favorite color? Answer wrong and you lose!");
+B('opal', 'Opal', 'Gym Leader', 'Ballonlea Stadium', 'Galar', 'gym', '#d07ab0', ['Mawile', 'Granbull', 'Weezing-Galar', 'Togekiss', 'Hatterene', 'Alcremie'], "Pop quiz, dearie! What's my favorite color? Answer wrong and you lose!");
 B('gordie', 'Gordie', 'Gym Leader', 'Circhester Stadium', 'Galar', 'gym', '#7a6a5a', ['Barbaracle', 'Shuckle', 'Stonjourner', 'Gigalith', 'Tyranitar', 'Coalossal'], "I'm not living in my mom's shadow. My rock Pokémon will prove it.");
-B('melony', 'Melony', 'Gym Leader', 'Circhester Stadium', 'Galar', 'gym', '#8ac0e0', ['Frosmoth', 'Eiscue', 'Mr. Rime', 'Avalugg', 'Glaceon', 'Lapras'], "I'll treat you just like my own kids. That means no going easy!");
+B('melony', 'Melony', 'Gym Leader', 'Circhester Stadium', 'Galar', 'gym', '#8ac0e0', ['Frosmoth', 'Mr. Rime', 'Eiscue', 'Darmanitan-Galar', 'Avalugg', 'Lapras'], "I'll treat you just like my own kids. That means no going easy!");
 B('hop', 'Hop', 'Rival', 'Wyndon Stadium', 'Galar', 'rival', '#7a5ab0', ['Dubwool', 'Snorlax', 'Pincurchin', 'Corviknight', 'Inteleon', 'Zamazenta'], "I've been training nonstop! This time I'm gonna beat you, mate!");
-B('bede', 'Bede', 'Gym Leader', 'Ballonlea Stadium', 'Galar', 'rival', '#c06ab0', ['Mawile', 'Gardevoir', 'Reuniclus', 'Sylveon', 'Florges', 'Hatterene'], "Still here? How irritating. Let me show you what real talent looks like.");
+B('bede', 'Bede', 'Gym Leader', 'Ballonlea Stadium', 'Galar', 'rival', '#c06ab0', ['Mawile', 'Gardevoir', 'Rapidash-Galar', 'Sylveon', 'Florges', 'Hatterene'], "Still here? How irritating. Let me show you what real talent looks like.");
 B('oleana', 'Oleana', 'Chairman\'s Secretary', 'Rose Tower', 'Galar', 'villain', '#6a6a8a', ['Liepard', 'Froslass', 'Tsareena', 'Salazzle', 'Milotic', 'Garbodor'], 'The Chairman\'s plan will not be disturbed. Least of all by you.');
 // Paldea / Team Star
 B('katy', 'Katy', 'Gym Leader', 'Cortondo Gym', 'Paldea', 'gym', '#a0b03a', ['Spidops', 'Heracross', 'Forretress', 'Lokix', 'Araquanid', 'Ursaring'], "Let's see if you can handle my bug Pokémon. They're sweeter than they look!");
 B('brassius', 'Brassius', 'Gym Leader', 'Artazon Gym', 'Paldea', 'gym', '#5aa04a', ['Breloom', 'Arboliva', 'Vileplume', 'Tsareena', 'Lilligant', 'Sudowoodo'], 'Behold my living art! This battle shall be my next masterpiece!');
 B('iono', 'Iono', 'Gym Leader', 'Levincia Gym', 'Paldea', 'gym', '#e0c03a', ['Kilowattrel', 'Electrode', 'Bellibolt', 'Luxray', 'Electivire', 'Mismagius'], "Heeey, chat! We've got a challenger! Smash that like button and watch me win!");
 B('kofu', 'Kofu', 'Gym Leader', 'Cascarrafa Gym', 'Paldea', 'gym', '#3a8ad0', ['Pelipper', 'Veluza', 'Feraligatr', 'Wugtrio', 'Clawitzer', 'Crabominable'], "I'm gonna serve you up a fresh platter of defeat, with a side of seafood!");
-B('larry', 'Larry', 'Elite Four & Gym Leader', 'Medali Gym', 'Paldea', 'e4', '#8a8a7a', ['Oinkologne', 'Tauros', 'Dudunsparce', 'Altaria', 'Flamigo', 'Staraptor'], "I'd rather be eating. But fine. Let's do this, nice and normal.");
+B('larry', 'Larry', 'Elite Four & Gym Leader', 'Medali Gym', 'Paldea', 'e4', '#8a8a7a', ['Oinkologne-F', 'Tauros', 'Dudunsparce', 'Altaria', 'Flamigo', 'Staraptor'], "I'd rather be eating. But fine. Let's do this, nice and normal.");
 B('ryme', 'Ryme', 'Gym Leader', 'Montenevera Gym', 'Paldea', 'gym', '#6a4a8a', ['Banette', 'Mimikyu', 'Golurk', 'Spiritomb', 'Houndstone', 'Toxtricity'], "Yo, yo! MC Ryme on the mic, and I'm about to drop your HP to zero!");
 B('tulip', 'Tulip', 'Gym Leader', 'Alfornada Gym', 'Paldea', 'gym', '#d07ab0', ['Farigiraf', 'Gardevoir', 'Espathra', 'Gallade', 'Delphox', 'Florges'], "Let me give your battle style a makeover. You'll look gorgeous losing.");
-B('grusha', 'Grusha', 'Gym Leader', 'Glaseado Gym', 'Paldea', 'gym', '#8ac0e0', ['Glaceon', 'Beartic', 'Frosmoth', 'Cetitan', 'Weavile', 'Altaria'], "Cool head, cold Pokémon. Don't expect any warmth from me.");
+B('grusha', 'Grusha', 'Gym Leader', 'Glaseado Gym', 'Paldea', 'gym', '#8ac0e0', ['Ninetales-Alola', 'Beartic', 'Frosmoth', 'Cetitan', 'Weavile', 'Altaria'], "Cool head, cold Pokémon. Don't expect any warmth from me.");
 B('giacomo', 'Giacomo', 'Team Star Boss', 'Segin Squad Base', 'Paldea', 'villain', '#3a3a4a', ['Revavroom', 'Cacturne', 'Honchkrow', 'Mabosstiff', 'Krookodile', 'Kingambit'], "Drop the beat. This battle's getting remixed, and you're the sample.");
 B('mela', 'Mela', 'Team Star Boss', 'Schedar Squad Base', 'Paldea', 'villain', '#d04a2a', ['Revavroom', 'Torkoal', 'Coalossal', 'Houndoom', 'Arcanine', 'Armarouge'], "You wanna fight Team Star? Then you better be ready to get burned!");
 B('atticus', 'Atticus', 'Team Star Boss', 'Navi Squad Base', 'Paldea', 'villain', '#8a3aa0', ['Glimmora', 'Skuntank', 'Muk', 'Dragalge', 'Toxapex', 'Revavroom'], 'Poison seeps in slowly, yet unstoppably. So too will your defeat.');
@@ -543,9 +543,9 @@ B('ortega', 'Ortega', 'Team Star Boss', 'Ruchbah Squad Base', 'Paldea', 'villain
 B('eri', 'Eri', 'Team Star Boss', 'Caph Squad Base', 'Paldea', 'villain', '#a04a2a', ['Revavroom', 'Primeape', 'Toxicroak', 'Passimian', 'Lucario', 'Annihilape'], "I won't back down. Not for you, not for anyone. Bring it!");
 B('penny', 'Penny', 'Team Star Boss (Cassiopeia)', 'Naranja Academy', 'Paldea', 'villain', '#6a5ab0', ['Vaporeon', 'Jolteon', 'Flareon', 'Leafeon', 'Umbreon', 'Sylveon'], "Cassiopeia never shows her face... but I guess you've earned a real battle.");
 // Blueberry League (Blueberry Academy, Indigo Disk)
-B('crispin', 'Crispin', 'Blueberry Elite Four', 'Blueberry Academy', 'Blueberry', 'e4', '#e05a2a', ['Rotom', 'Talonflame', 'Exeggutor', 'Camerupt', 'Magmortar', 'Blaziken'], "Hot hot HOT! I'm gonna set this whole battle on fire!");
-B('amarys', 'Amarys', 'Blueberry Elite Four', 'Blueberry Academy', 'Blueberry', 'e4', '#8a9ab0', ['Skarmory', 'Dugtrio', 'Scizor', 'Reuniclus', 'Empoleon', 'Metagross'], "...I'll fight. Just don't expect me to make small talk.");
-B('lacey', 'Lacey', 'Blueberry Elite Four', 'Blueberry Academy', 'Blueberry', 'e4', '#e07ab0', ['Whimsicott', 'Granbull', 'Primarina', 'Slowbro', 'Alcremie', 'Excadrill'], "I'm the disciplinary officer, and you're getting a lesson! In battling!");
+B('crispin', 'Crispin', 'Blueberry Elite Four', 'Blueberry Academy', 'Blueberry', 'e4', '#e05a2a', ['Rotom-Heat', 'Talonflame', 'Exeggutor', 'Camerupt', 'Magmortar', 'Blaziken'], "Hot hot HOT! I'm gonna set this whole battle on fire!");
+B('amarys', 'Amarys', 'Blueberry Elite Four', 'Blueberry Academy', 'Blueberry', 'e4', '#8a9ab0', ['Skarmory', 'Dugtrio-Alola', 'Scizor', 'Reuniclus', 'Empoleon', 'Metagross'], "...I'll fight. Just don't expect me to make small talk.");
+B('lacey', 'Lacey', 'Blueberry Elite Four', 'Blueberry Academy', 'Blueberry', 'e4', '#e07ab0', ['Whimsicott', 'Granbull', 'Primarina', 'Slowbro-Galar', 'Alcremie', 'Excadrill'], "I'm the disciplinary officer, and you're getting a lesson! In battling!");
 B('drayton', 'Drayton', 'Blueberry Elite Four', 'Blueberry Academy', 'Blueberry', 'e4', '#5a5ab0', ['Dragonite', 'Flygon', 'Haxorus', 'Sceptile', 'Kingdra', 'Archaludon'], "Can't be bothered to try hard... but I guess I'll make an exception.");
 B('kieran', 'Kieran', 'Champion', 'Blueberry Academy', 'Blueberry', 'champion', '#3a6a5a', ['Poliwrath', 'Dragonite', 'Porygon-Z', 'Grimmsnarl', 'Incineroar', 'Hydrapple'], "I got stronger. Much stronger. This time I'm not losing to you.");
 
@@ -555,7 +555,7 @@ B('may', 'May', 'Rival', 'Lilycove City', 'Hoenn', 'rival', '#d04a4a', ['Swellow
 B('trace', 'Trace', 'Rival', 'Indigo Plateau', 'Kanto', 'rival', '#4a6ab0', ['Pidgeot', 'Vileplume', 'Marowak', 'Rapidash', 'Slowbro', 'Jolteon'], "Hey! I've been training like crazy. Let's settle who's the best in Kanto!");
 B('barry', 'Barry', 'Rival', 'Battle Tower', 'Sinnoh', 'rival', '#e0a03a', ['Staraptor', 'Floatzel', 'Heracross', 'Roserade', 'Snorlax', 'Infernape'], "Hurry up! I'm fining you a million if you make me wait any longer!");
 B('dawn', 'Dawn', 'Rival', 'Sandgem Town', 'Sinnoh', 'rival', '#d05a8a', ['Togekiss', 'Bellossom', 'Mamoswine', 'Typhlosion', 'Lopunny', 'Empoleon'], "No need to worry! My Pokémon and I are totally ready for this.");
-B('lucas', 'Lucas', 'Rival', 'Sandgem Town', 'Sinnoh', 'rival', '#4a6ab0', ['Gliscor', 'Cradily', 'Glaceon', 'Rotom', 'Tauros', 'Torterra'], "I've been filling in the Pokédex for the professor. Let's see what I learned!");
+B('lucas', 'Lucas', 'Rival', 'Sandgem Town', 'Sinnoh', 'rival', '#4a6ab0', ['Gliscor', 'Cradily', 'Glaceon', 'Rotom-Heat', 'Tauros', 'Torterra'], "I've been filling in the Pokédex for the professor. Let's see what I learned!");
 B('bianca', 'Bianca', 'Rival', 'Nuvema Town', 'Unova', 'rival', '#7ab04a', ['Stoutland', 'Simisear', 'Musharna', 'Mienshao', 'Chandelure', 'Samurott'], "Ummm, I'm not as weak as everyone thinks! I'll show you, OK?");
 B('hugh', 'Hugh', 'Rival', 'Aspertia City', 'Unova', 'rival', '#3a5a9a', ['Unfezant', 'Simipour', 'Bouffalant', 'Flygon', 'Eelektross', 'Emboar'], "I'm getting stronger to take back what was stolen. You're my test.");
 B('shauna', 'Shauna', 'Rival', 'Vaniville Town', 'Kalos', 'rival', '#e07ab0', ['Furfrou', 'Delcatty', 'Florges', 'Sylveon', 'Goodra', 'Greninja'], "Let's have a super fun battle! Win or lose, we're friends forever!");
@@ -713,6 +713,10 @@ const ABILITY_INFO = {
   'Aroma Veil': 'Immune to Taunt, Encore and Disable.',
   'Wonder Skin': 'Status moves aimed at it have at most 50% accuracy.',
   Illuminate: 'Its accuracy can’t be lowered, and it ignores the target’s evasion boosts.',
+  'As One (Glastrier)': 'Raises Attack by 1 each time it knocks out a Pokémon.',
+  'As One (Spectrier)': 'Raises Sp. Atk by 1 each time it knocks out a Pokémon.',
+  'Surge Surfer': 'Doubles Speed on Electric Terrain.',
+  'Pastel Veil': 'Can’t be poisoned.',
   'Defiant': 'Attack sharply rises when a foe lowers its stats.',
   'Disguise': 'The first hit only deals 1/8 of its max HP.',
   'Drizzle': 'Summons rain for 5 turns on entry.',

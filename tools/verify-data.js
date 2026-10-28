@@ -23,8 +23,11 @@ const movedex = readJSON('moves.json');
 const learnsets = readJSON('learnsets.json');
 const toID = s => String(s).toLowerCase().replace(/[^a-z0-9]/g, '');
 
+// Alternate forms with few or no moves of their own also learn the base species' moves (as in Showdown)
 function learnable(id) {
   const out = new Set();
+  const own = learnsets[id] && learnsets[id].learnset, sp0 = pokedex[id];
+  if (sp0 && sp0.forme && (!own || Object.keys(own).length < 10)) for (const k of learnable(toID(sp0.baseSpecies))) out.add(k);
   for (let cur = id; cur; ) {
     const ls = learnsets[cur] && learnsets[cur].learnset;
     if (ls) for (const k of Object.keys(ls)) out.add(k);
@@ -34,7 +37,7 @@ function learnable(id) {
   return out;
 }
 
-const problems = { stats: [], types: [], moves: [], unsupported: [], hard: [], abilities: [], moveData: [], missing: [], bosses: [], specials: [] };
+const problems = { stats: [], types: [], moves: [], unsupported: [], hard: [], abilities: [], moveData: [], missing: [], bosses: [], specials: [], sprites: [] };
 for (const s of Object.values(DEX)) {
   const sp = pokedex[toID(s.name)];
   if (!sp) { problems.missing.push(s.name); continue; }
@@ -49,6 +52,8 @@ for (const s of Object.values(DEX)) {
   const hard = HARD_MOVES[s.name];
   if (hard && (!learn.has(toID(hard)) || !MOVES[hard] || MOVES[hard].unsupported)) problems.hard.push(`${s.name}: ${hard}`);
   if (s.moves.some(m => MOVES[m] && MOVES[m].setup) && !hard) problems.hard.push(`${s.name}: has a setup move but no Hard swap`);
+  if (sp.forme && !s.spr) problems.sprites.push(`${s.name}: alternate form with no sprite number`);
+  if (s.spr && !(s.spr > 10000)) problems.sprites.push(`${s.name}: sprite number ${s.spr} isn't a PokeAPI form number`);
   const ab = ABILITIES[s.name];
   if (ab && !Object.values(sp.abilities).includes(ab)) problems.abilities.push(`${s.name}: ${ab} (can have ${Object.values(sp.abilities).join(' / ')})`);
 }
@@ -76,7 +81,7 @@ const LABELS = {
   missing: 'Species not found in Showdown', stats: 'Wrong base stats', types: 'Wrong types',
   moves: "Moves the Pokémon can't learn", unsupported: 'Moves the engine cannot play in a set', hard: "Hard-mode swap moves it can't learn",
   abilities: "Abilities it can't have", moveData: 'Moves not in Showdown', bosses: 'Boss problems',
-  specials: 'Special moves with no engine handler'
+  specials: 'Special moves with no engine handler', sprites: 'Alternate forms with a bad sprite number'
 };
 let total = 0;
 console.log(`Checked ${Object.keys(DEX).length} Pokémon, ${Object.keys(MOVES).length} moves and ${BOSSES.length} bosses.`);

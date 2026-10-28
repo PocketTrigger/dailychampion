@@ -367,7 +367,7 @@ const MOVES = {
   "Iron Defense": {"name":"Iron Defense","type":"Steel","cat":"x","power":0,"acc":0,"pp":15,"self":{"def":2},"setup":true,"desc":"+2 Def (user)."},
   "Iron Head": {"name":"Iron Head","type":"Steel","cat":"p","power":80,"acc":100,"pp":15,"contact":true,"protectable":true,"secs":[{"ch":30,"vol":"flinch"}]},
   "Iron Tail": {"name":"Iron Tail","type":"Steel","cat":"p","power":100,"acc":75,"pp":15,"contact":true,"protectable":true,"secs":[{"ch":30,"tgt":{"def":-1}}]},
-  "Ivy Cudgel": {"name":"Ivy Cudgel","type":"Grass","cat":"p","power":100,"acc":100,"pp":10,"protectable":true,"crit":1,"unsupported":true},
+  "Ivy Cudgel": {"name":"Ivy Cudgel","type":"Grass","cat":"p","power":100,"acc":100,"pp":10,"protectable":true,"crit":1,"special":"ivycudgel"},
   "Jaw Lock": {"name":"Jaw Lock","type":"Dark","cat":"p","power":80,"acc":100,"pp":10,"contact":true,"bite":true,"protectable":true,"special":"jawlock"},
   "Jet Punch": {"name":"Jet Punch","type":"Water","cat":"p","power":60,"acc":100,"pp":15,"prio":1,"contact":true,"punch":true,"protectable":true},
   "Judgment": {"name":"Judgment","type":"Normal","cat":"s","power":100,"acc":100,"pp":10,"protectable":true,"unsupported":true},

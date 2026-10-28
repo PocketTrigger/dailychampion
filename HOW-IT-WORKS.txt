@@ -30,7 +30,8 @@ moves-gen.js        GENERATED. All 822 moves with their full effects, converted 
                     move data (643 of them are playable). Built by tools/build-dex.js.
 data.js             Hand-written data: type chart, ~260 curated Pokémon, the 187 bosses, ability
                     assignments and descriptions, and the Hard-mode move swaps.
-dex-all.js          GENERATED. The other ~767 Pokémon (so all 1,025 are present), plus updated
+dex-all.js          GENERATED. The other ~767 species (so all 1,025 are present), 98 alternate
+                    forms (Alolan Ninetales, Rotom-Wash...), plus updated
                     movesets for the curated Pokémon. Built by tools/build-dex.js. Do not edit.
 anim.js             Move animations (draws effects over the arena; contains no game logic).
 game.js             Everything else: daily selection, draft pool, battle engine, abilities, boss logic,
@@ -38,7 +39,8 @@ game.js             Everything else: daily selection, draft pool, battle engine,
 tools/build-dex.js  Script that builds moves-gen.js and dex-all.js from Pokémon Showdown data.
 tools/verify-data.js  Checks all Pokémon and move data against Showdown's data (see section 7).
 tools/README.md     How to re-run the build.
-tools/showdown-data Downloaded Showdown data files. Only needed to rebuild, not to run the site.
+tools/showdown-data Downloaded Showdown data files, plus pokeapi-forms.json (PokeAPI's sprite
+                    numbers for alternate forms). Only needed to rebuild, not to run the site.
 
 Load order matters: moves-gen.js, data.js, dex-all.js, anim.js, then game.js.
 
@@ -71,6 +73,8 @@ Who can appear:
   legendary or sub-legendary, and at most 1 per pool.
 - Sub-legendaries, Paradox Pokémon and Ultra Beasts ("tier S"): at most 2 per pool.
 - The game prefers 9 different primary types, so the pool has variety.
+- Alternate forms can appear like any other Pokémon, but a pool never holds two forms of the same
+  species (for example Ninetales and Alolan Ninetales).
 
 How the pool is balanced around the boss:
 1. A quick "duel" estimate is computed for each pool Pokémon against each boss Pokémon. Both are
@@ -215,15 +219,16 @@ What is still NOT modelled:
 - Mega Evolution, Z-Moves, Dynamax and Terastallization (so Tera Blast is never used).
 - Doubles-only effects, infatuation (Attract), and a handful of rarely seen moves that depend on
   them (Showdown marks these, and the build script never puts them in a set).
-- Alternate forms (regional forms, Rotom's appliance forms, etc.) aren't included except where an
-  ability changes form in battle.
+- Cosmetic and battle-only forms (Vivillon patterns, Mega Evolutions, Gigantamax...), Pumpkaboo
+  and Gourgeist sizes, and Arceus and Silvally type forms. Forms that change during battle through
+  an ability (Zen Mode, Stance Change, Schooling...) are handled by that ability.
 
 
 ------------------------------------------------------------------------------------------------
 5. ABILITIES, WEATHER AND TERRAIN
 ------------------------------------------------------------------------------------------------
-About 240 abilities are implemented, and 1,004 of the 1,025 Pokémon have a working ability. Each
-Pokémon gets exactly one ability. The other 21 only have abilities that do nothing in this game
+About 245 abilities are implemented, and 1,094 of the 1,123 Pokémon and forms have a working
+ability. Each Pokémon gets exactly one ability. The other 29 only have abilities that do nothing in this game
 (item, doubles, Tera or info-only abilities such as Pickup, Cheek Pouch, Illusion, Frisk), so
 they have none. Hover an ability in the game to see its description (ABILITY_INFO in
 data.js).
@@ -324,7 +329,7 @@ HARD
 ------------------------------------------------------------------------------------------------
 7. WHERE THE POKÉMON AND MOVE DATA COME FROM
 ------------------------------------------------------------------------------------------------
-Two sources:
+Sources:
 
 A) Hand-curated (data.js, ~260 Pokémon)
    Originally written by hand: base stats, types, and
@@ -360,17 +365,40 @@ B) Generated (moves-gen.js with every move, and dex-all.js with the remaining ~7
    - tags legendaries ("L" = restricted legendary or mythical, "S" = sub-legendary, Paradox or
      Ultra Beast).
    - stores every species' weight (kg) for Low Kick / Grass Knot.
-   Base forms only (#1 to #1025). Hand-curated entries always take priority over generated ones.
+   Species #1 to #1025, plus 98 alternate forms (see D). Hand-curated entries always take priority
+   over generated ones.
    Pokémon with almost no attacks (Ditto, Wobbuffet, Unown) get Return as a placeholder, and they
    are too weak to appear in the draft anyway.
 
 C) Verification (tools/verify-data.js)
    Run "node tools/verify-data.js" after any data change. It checks every Pokémon's base stats,
    types, ability, moves (learnable, including from pre-evolutions) and Hard-mode swap move, and
-   that every move exists in Showdown's data, that no set contains a move the engine can't play,
+   that every move exists in Showdown's data, that every alternate form has a PokeAPI sprite
+   number, that no set contains a move the engine can't play,
    and that every move with special rules has a handler in game.js. It also checks every boss: a
    valid role, exactly 6 Pokémon that all exist, and unique keys. It exits with an error if
    anything doesn't match.
+
+
+------------------------------------------------------------------------------------------------
+D) Alternate forms (dex-all.js, 98 of them)
+   A form is included when Showdown lists it as a separate forme and its types or base stats differ
+   from the base species. That covers every Alolan, Galarian, Hisuian and Paldean form (including
+   the three Paldean Tauros breeds and the Galarian birds), Rotom's appliances, Deoxys, Wormadam,
+   Shaymin-Sky, the Therian forms, Kyurem-Black/White, Zygarde-10%, Hoopa-Unbound, Oricorio,
+   Lycanroc, Necrozma's fusions, Urshifu-Rapid-Strike, Calyrex's riders, Ursaluna-Bloodmoon, and
+   the female Indeedee, Basculegion and Oinkologne.
+   - Forms that normally need a held item have it built in: Dialga, Palkia and Giratina Origin
+     (1.2x power on their two types), Ogerpon's masks (1.2x power, and Ivy Cudgel takes the mask's
+     type), and Zacian- and Zamazenta-Crowned. Raging Bull takes each Paldean Tauros breed's type.
+   - Names follow Showdown ("Ninetales-Alola", "Rotom-Wash"). Each form keeps its National Dex
+     number (for the Shiny Dex and generation tabs) plus a separate sprite number from PokeAPI,
+     which numbers forms from 10001 up (tools/showdown-data/pokeapi-forms.json).
+   - Movesets, abilities and Hard-mode swaps are picked the same way as for other generated
+     Pokémon. Forms with few moves of their own (Rotom's appliances, Oricorio...) also learn the
+     base species' moves, as in Showdown.
+   - The generator avoids moves that usually fail (Focus Punch without Substitute, Dream Eater and
+     Snore without sleep).
 
 
 ------------------------------------------------------------------------------------------------
@@ -400,19 +428,27 @@ How the teams were built:
   Tournament, Champion rematches or post-game battles). It was read automatically from the team
   tables in the built-in browser. Then:
   - everything is fully evolved (Nosepass -> Probopass, Golbat -> Crobat, ...);
-  - regional forms become base forms because only base forms exist here (Alolan Persian ->
-    Persian; Galarian Darmanitan and Alolan Ninetales were swapped for Glaceon);
+  - alternate forms are kept (Alolan Persian, Galarian Darmanitan, Rotom-Heat...);
   - short teams are filled to 6 with Pokémon that fit the trainer's type or theme (for example
     most villain admins only had 2-3 Pokémon in the games).
   - The ace (signature or highest-level Pokémon) is last.
 - Charon never battles in the games, so his team is themed on his Rotom and Heatran research.
 - The original 60 bosses were written earlier and are inspired by the characters' best-known
-  teams rather than read from Bulbapedia. For example Lance has Salamence, and Kukui has both
-  Primarina and Incineroar.
+  teams rather than read from Bulbapedia. For example Lance has Salamence.
+- After alternate forms were added, every boss page was scanned again for forms (Bulbapedia's
+  sprite file names include them, such as 0038Ninetales-Alola.png). 21 teams changed:
+  - same slot, now the right form: Hau (Alolan Raichu), Sophocles (Alolan Golem), Kiawe (Alolan
+    Marowak), Nanu (Alolan Persian), Molayne, Hapu and Amarys (Alolan Dugtrio), Plumeria (Alolan
+    Muk), Opal (Galarian Weezing), Lacey (Galarian Slowbro), Larry (female Oinkologne), Colress
+    (Rotom-Wash), Crispin and Lucas (Rotom-Heat);
+  - Pokémon restored after being dropped for lack of their form: Kukui (Alolan Ninetales, instead
+    of a second starter), Melony (Galarian Darmanitan), Bede (Galarian Rapidash), Faba (Alolan
+    Raichu), Grusha (Alolan Ninetales), Olivia (Alolan Golem and Midnight Lycanroc), and Volo
+    (Hisuian Arcanine, with Giratina now in its Origin Forme).
 - Movesets are the same as everyone else's (section 7). Bosses don't get special sets.
 - The quotes are ORIGINAL short lines written in each character's style, not lines from the games.
 - Legendaries on boss teams: Zapdos and Moltres (Lt. Surge, Blaine), Groudon (Maxie), Kyogre
-  (Archie), Darkrai (Cyrus), Giratina (Volo), Zekrom (N), Yveltal (Lysandre), Heatran (Charon),
+  (Archie), Darkrai (Cyrus), Giratina-Origin (Volo), Zekrom (N), Yveltal (Lysandre), Heatran (Charon),
   Zamazenta (Hop). On those days the draft pool may include one legendary (section 3).
 - Trainer sprites come from Pokémon Showdown (Arven uses "arven-v"). Aliana and Celosia have none there, so they show a
   Poké Ball silhouette.
@@ -426,7 +462,8 @@ How the teams were built:
 All images are hotlinked (loaded from the original sites, not stored in this folder):
 - Pokémon sprites: PokéAPI's sprite repository
     https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/<dex#>.png
-    and .../back/<dex#>.png for your side. Newer Pokémon without a back sprite fall back to a
+    and .../back/<dex#>.png for your side. Alternate forms use PokeAPI's form number instead
+    (10001 and up). Newer Pokémon without a back sprite fall back to a
     mirrored front sprite.
 - Trainer sprites: Pokémon Showdown, https://play.pokemonshowdown.com/sprites/trainers/<name>.png
   (a few bosses use a different file name, set by the "sprite" field in BOSSES).
@@ -466,7 +503,7 @@ They speed up at 2×, are skipped at 4×, and can be turned off with the ✨ but
 Shiny hunting and the Shiny Dex:
 - When a new daily run is created, each of the 9 draft cards rolls a 1 in 100 chance (about 8.6%
   per day that at least one hits). On a hit, the player gets a BONUS 10th card: a shiny Pokémon
-  picked at random from ALL 1,025 species. That includes weak and unevolved Pokémon and
+  picked at random from ALL 1,123 Pokémon (every species and alternate form). That includes weak and unevolved Pokémon and
   legendaries that never appear in the normal pool. The shared 9 cards stay the same for
   everyone; only the bonus card is personal.
 - The roll uses normal randomness (not the date seed), so each player's luck is their own. It is
@@ -478,8 +515,8 @@ Shiny hunting and the Shiny Dex:
 - Shinies only appear in the official daily battle, never in practice.
 - Shiny sprites come from PokéAPI (sprites/pokemon/shiny/<dex#>.png and back/shiny/...). A gold
   sparkle plays when a shiny is sent out.
-- The Shiny Dex (📖 button, also linked from Stats and the result screen) shows all 1,025 species in
-  dex order, with generation tabs and a "Collected only" filter. Collected ones show in shiny
+- The Shiny Dex (📖 button, also linked from Stats and the result screen) shows all 1,123 Pokémon in
+  dex order (each form right after its base species), with generation tabs and a "Collected only" filter. Collected ones show in shiny
   colours; the rest are silhouettes. It is saved in localStorage as "shinies".
 - The result share text adds "✨ Shiny caught: <name>" when you catch one.
 

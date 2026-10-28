@@ -24,6 +24,8 @@
   const SPR = 'https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/';
   const front = (id, shiny) => `${SPR}${shiny ? 'shiny/' : ''}${id}.png`;
   const back = (id, shiny) => `${SPR}back/${shiny ? 'shiny/' : ''}${id}.png`;
+  // Alternate forms have their own sprite number (PokeAPI numbers them from 10001)
+  const sprOf = sp => sp.spr || sp.id;
   const trainerSrc = boss => `https://play.pokemonshowdown.com/sprites/trainers/${boss.sprite || boss.key}.png`;
   // Trainers without a Showdown sprite get a Poké Ball silhouette instead of an empty gap
   const TRAINER_FALLBACK = 'data:image/svg+xml,' + encodeURIComponent('<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64"><circle cx="32" cy="32" r="26" fill="#000" fill-opacity=".35" stroke="#fff" stroke-opacity=".5" stroke-width="3"/><path d="M6 32h52" stroke="#fff" stroke-opacity=".5" stroke-width="3"/><circle cx="32" cy="32" r="7" fill="#000" fill-opacity=".5" stroke="#fff" stroke-opacity=".5" stroke-width="3"/></svg>');
@@ -89,12 +91,12 @@
 
   // 9 Pokémon, different primary types where possible, at most 2 sub-legendaries and 1 legendary
   function drawPool(eligible, r) {
-    const cands = shuffle(eligible, r), out = [], used = new Set();
+    const cands = shuffle(eligible, r), out = [], used = new Set(), species = new Set();
     let subs = 0, legs = 0;
     const allowed = s => s.tier === 'L' ? legs < 1 : s.tier === 'S' ? subs < 2 : true;
-    const add = s => { out.push(s.name); used.add(s.types[0]); if (s.tier === 'L') legs++; if (s.tier === 'S') subs++; };
-    for (const s of cands) { if (out.length >= 9) break; if (!used.has(s.types[0]) && allowed(s)) add(s); }
-    for (const s of cands) { if (out.length >= 9) break; if (!out.includes(s.name) && allowed(s)) add(s); }
+    const add = s => { out.push(s.name); used.add(s.types[0]); species.add(s.id); if (s.tier === 'L') legs++; if (s.tier === 'S') subs++; };
+    for (const s of cands) { if (out.length >= 9) break; if (!used.has(s.types[0]) && !species.has(s.id) && allowed(s)) add(s); }
+    for (const s of cands) { if (out.length >= 9) break; if (!species.has(s.id) && allowed(s)) add(s); }
     return out;
   }
 
@@ -167,7 +169,7 @@
     if (name === 'Shedinja') s[0] = 1;
     const moves = movesFor(name, diff);
     return {
-      name, id: sp.id, types: sp.types.slice(), level, maxhp: s[0], hp: s[0],
+      name, id: sp.id, spr: sprOf(sp), types: sp.types.slice(), level, maxhp: s[0], hp: s[0],
       st: { atk: s[1], def: s[2], spa: s[3], spd: s[4], spe: s[5] },
       boosts: freshBoosts(), status: null, slp: 0, tox: 0, moves,
       pp: Object.fromEntries(moves.map(n => [n, maxPP(n)])), v: {}
@@ -226,7 +228,7 @@
   const FORMS = {
     blade: [60, 140, 50, 140, 50, 60], shield: [60, 50, 140, 50, 140, 60],
     Schooling: [45, 140, 130, 140, 135, 30], 'Shields Down': [60, 100, 60, 100, 60, 120],
-    'Zen Mode': [105, 30, 105, 140, 105, 55], 'Power Construct': [216, 100, 121, 91, 95, 85],
+    'Zen Mode': [105, 30, 105, 140, 105, 55], 'Zen Mode Galar': [105, 160, 55, 30, 55, 135], 'Power Construct': [216, 100, 121, 91, 95, 85],
     'Zero to Hero': [100, 160, 97, 106, 87, 100]
   };
   const FORM_ABILS = ['Stance Change', 'Schooling', 'Shields Down', 'Zen Mode', 'Power Construct', 'Zero to Hero', 'Forecast'];
@@ -248,6 +250,11 @@
     'Well-Baked Body': ['Fire', { def: 2 }]
   };
   const PINCH = { Blaze: 'Fire', Torrent: 'Water', Overgrow: 'Grass', Swarm: 'Bug' };
+  // Forms whose held item is built in: the Origin orbs boost two types, Ogerpon's masks boost everything
+  const ITEM_BOOST = { 'Dialga-Origin': ['Steel', 'Dragon'], 'Palkia-Origin': ['Water', 'Dragon'], 'Giratina-Origin': ['Ghost', 'Dragon'],
+    'Ogerpon-Wellspring': 'all', 'Ogerpon-Hearthflame': 'all', 'Ogerpon-Cornerstone': 'all' };
+  const OGERPON_TYPE = { 'Ogerpon-Wellspring': 'Water', 'Ogerpon-Hearthflame': 'Fire', 'Ogerpon-Cornerstone': 'Rock' };
+  const BULL_TYPE = { 'Tauros-Paldea-Combat': 'Fighting', 'Tauros-Paldea-Blaze': 'Fire', 'Tauros-Paldea-Aqua': 'Water' };
   const ATE = { Pixilate: 'Fairy', Refrigerate: 'Ice', Aerilate: 'Flying', Galvanize: 'Electric' };
   const TYPE_BOOST = { 'Steely Spirit': ['Steel', 1.5], Steelworker: ['Steel', 1.5], 'Rocky Payload': ['Rock', 1.5], "Dragon's Maw": ['Dragon', 1.5], Transistor: ['Electric', 1.3], 'Water Bubble': ['Water', 2] };
   const NO_DROPS = ['Clear Body', 'Mirror Armor', 'Full Metal Body', 'White Smoke'];
@@ -255,11 +262,11 @@
   const TRAPPERS = { 'Shadow Tag': m => true, 'Arena Trap': m => grounded(m), 'Magnet Pull': m => m.types.includes('Steel') };
   const STATUS_GUARD = {
     Insomnia: ['slp'], 'Vital Spirit': ['slp'], 'Sweet Veil': ['slp'], Limber: ['par'], Immunity: ['psn', 'tox'],
-    'Magma Armor': ['frz'], 'Water Veil': ['brn'], 'Thermal Exchange': ['brn'], 'Water Bubble': ['brn']
+    'Magma Armor': ['frz'], 'Water Veil': ['brn'], 'Thermal Exchange': ['brn'], 'Water Bubble': ['brn'], 'Pastel Veil': ['psn', 'tox']
   };
   const HALF_TRIGGERS = ['Berserk', 'Anger Shell', 'Wimp Out', 'Emergency Exit'];
   const PRIO_BLOCK = ['Queenly Majesty', 'Armor Tail', 'Dazzling'];
-  const KO_BOOST = { Moxie: { atk: 1 }, 'Chilling Neigh': { atk: 1 }, 'Grim Neigh': { spa: 1 } };
+  const KO_BOOST = { Moxie: { atk: 1 }, 'Chilling Neigh': { atk: 1 }, 'Grim Neigh': { spa: 1 }, 'As One (Glastrier)': { atk: 1 }, 'As One (Spectrier)': { spa: 1 } };
   const VOL_BLOCKERS = { taunt: ['Oblivious', 'Aroma Veil'], encore: ['Aroma Veil'], disable: ['Aroma Veil'] };
 
   function moveType(a, m) {
@@ -267,6 +274,8 @@
     if (ab === 'Normalize') return 'Normal';
     if (m.special === 'weatherball') { const W = weather(); return W === 'rain' ? 'Water' : W === 'sun' ? 'Fire' : W === 'sand' ? 'Rock' : W === 'snow' ? 'Ice' : 'Normal'; }
     if (m.special === 'terrainpulse' && grounded(a)) { const T = terrain(); return T ? { electric: 'Electric', grassy: 'Grass', psychic: 'Psychic', misty: 'Fairy' }[T] : 'Normal'; }
+    if (m.special === 'ivycudgel') return OGERPON_TYPE[a.name] || 'Grass';
+    if (m.special === 'ragingbull') return BULL_TYPE[a.name] || 'Normal';
     if (ab === 'Liquid Voice' && m.sound) return 'Water';
     return m.type === 'Normal' && ATE[ab] ? ATE[ab] : m.type;
   }
@@ -310,6 +319,7 @@
     let s = m.st.spe * MULT(m.boosts.spe);
     if (a === 'Quick Feet' && m.status) s *= 1.5; else if (m.status === 'par') s *= 0.5;
     if (WEATHER_SPEED[a] && WEATHER_SPEED[a] === weather()) s *= 2;
+    if (a === 'Surge Surfer' && terrain() === 'electric') s *= 2;
     if (boosted(m) && topStat(m) === 'spe') s *= 1.5;
     if (a === 'Slow Start' && m.slow > 0) s *= 0.5;
     const sd = sideOf(m); if (sd && sd.tailwind) s *= 2;
@@ -401,6 +411,8 @@
     if (T === 'grassy' && ['Earthquake', 'Bulldoze'].includes(m.name) && grounded(d)) f *= 0.5;
     if ((type === 'Fairy' && activeHas('Fairy Aura')) || (type === 'Dark' && activeHas('Dark Aura'))) f *= activeHas('Aura Break') ? 0.75 : 4 / 3;
     if (a.charged && type === 'Electric') f *= 2;
+    const item = ITEM_BOOST[a.name];
+    if (item && (item === 'all' || item.includes(type))) f *= 1.2;
     if (defAbil(a, d) === 'Dry Skin' && type === 'Fire') f *= 1.25;
     return f;
   }
@@ -979,7 +991,7 @@
     m.base = { st: Object.assign({}, m.st), moves: m.moves.slice(), pp: Object.assign({}, m.pp) };
     m.st = Object.assign({}, o.st); m.types = o.types.slice(); m.moves = o.moves.slice();
     m.pp = Object.fromEntries(m.moves.map(n => [n, 5]));
-    m.boosts = Object.assign({}, o.boosts); m.dispId = o.dispId || o.id;
+    m.boosts = Object.assign({}, o.boosts); m.dispId = o.dispId || sprOf(o);
     if (abil(o) && !NO_COPY.includes(abil(o))) m.abil = abil(o);
     renderSprites();
     await say(`${label(side, m)} transformed into ${o.name}!`, cls);
@@ -1016,8 +1028,9 @@
       await say(half ? `${L}'s shell broke apart!` : `${L}'s shell reformed!`, cls);
     }
     if (a === 'Zen Mode' && half !== !!m.zen) {
-      m.zen = half; setForm(m, half ? FORMS['Zen Mode'] : DEX[m.name].stats);
-      m.types = half ? ['Fire', 'Psychic'] : DEX[m.name].types.slice();
+      const galar = m.name === 'Darmanitan-Galar';
+      m.zen = half; setForm(m, half ? FORMS[galar ? 'Zen Mode Galar' : 'Zen Mode'] : DEX[m.name].stats);
+      m.types = half ? (galar ? ['Ice', 'Fire'] : ['Fire', 'Psychic']) : DEX[m.name].types.slice();
       await say(half ? `${L} entered Zen Mode!` : `${L} left Zen Mode!`, cls);
     }
     if (a === 'Power Construct' && half && !m.complete) {
@@ -1910,7 +1923,7 @@
   const abilLine = name => ABILITIES[name] ? `<div class="abil-line" title="${esc(ABILITY_INFO[ABILITIES[name]])}">${esc(ABILITIES[name])}</div>` : '';
   function miniCard(name, dead, shiny) {
     const sp = DEX[name];
-    return `<div class="mini ${dead ? 'dead' : ''} ${shiny ? 'shiny' : ''}"><img class="sprite" src="${front(sp.id, shiny)}" alt="${esc(name)}" loading="lazy">
+    return `<div class="mini ${dead ? 'dead' : ''} ${shiny ? 'shiny' : ''}"><img class="sprite" src="${front(sprOf(sp), shiny)}" alt="${esc(name)}" loading="lazy">
       <div class="nm">${shiny ? '✨ ' : ''}${esc(name)}</div><div class="types">${sp.types.map(typeBadge).join('')}</div>${abilLine(name)}</div>`;
   }
 
@@ -1964,7 +1977,7 @@
           return `<button class="pick ${i >= 0 ? 'on' : ''} ${sh ? 'shiny' : ''}" data-pick="${esc(n)}">
             ${i >= 0 ? `<span class="order">${i + 1}</span>` : ''}
             ${sh ? '<div class="shiny-ribbon">✨ SHINY · win with it on your team to add it to your Shiny Dex</div>' : ''}
-            <div class="head"><img class="sprite" src="${front(sp.id, sh)}" alt="">
+            <div class="head"><img class="sprite" src="${front(sprOf(sp), sh)}" alt="">
               <div><div class="nm">${esc(n)}</div><div class="types">${sp.types.map(typeBadge).join('')}</div>${abilLine(n)}</div></div>
             <div class="stats">${stat(s[0], 'HP')}${stat(s[1], 'ATK')}${stat(s[2], 'DEF')}${stat(s[3], 'SPA')}${stat(s[4], 'SPD')}${stat(s[5], 'SPE')}</div>
             <div class="movelist">${movesFor(n, G.diff).map(m => `<span style="border-color:${TYPE_COLORS[MOVES[m].type]}">${esc(m)}</span>`).join('')}</div>
@@ -1974,13 +1987,13 @@
           <div class="section-title" style="margin-top:0">YOUR TEAM</div>
           ${[0, 1, 2, 3, 4, 5].map(i => {
             const n = G.picks[i];
-            return n ? `<div class="slot"><img class="sprite" src="${front(DEX[n].id, isShiny(n))}" alt=""><b>${i + 1}. ${isShiny(n) ? '✨ ' : ''}${esc(n)}</b></div>`
+            return n ? `<div class="slot"><img class="sprite" src="${front(sprOf(DEX[n]), isShiny(n))}" alt=""><b>${i + 1}. ${isShiny(n) ? '✨ ' : ''}${esc(n)}</b></div>`
               : `<div class="slot empty">Slot ${i + 1}</div>`;
           }).join('')}
           <button class="btn" id="go-battle" style="width:100%;margin-top:6px" ${G.picks.length === 6 ? '' : 'disabled'}>Battle ${esc(boss.name)}!</button>
           <button class="btn ghost" id="go-back" style="width:100%;margin-top:10px">← Back</button>
           <div class="section-title">FOE · ${diffLabel(G.diff).toUpperCase()}</div>
-          <div class="foe-list">${boss.team.map(n => `<div class="slot"><img class="sprite" src="${front(DEX[n].id)}" alt="">
+          <div class="foe-list">${boss.team.map(n => `<div class="slot"><img class="sprite" src="${front(sprOf(DEX[n]))}" alt="">
             <span>${esc(n)}<br>${DEX[n].types.map(typeBadge).join(' ')}${abilLine(n)}</span></div>`).join('')}</div>
         </aside>
       </div>`;
@@ -2045,12 +2058,12 @@
     const fi = $('#foe-img'), mi = $('#me-img'); if (!fi) return;
     const f = act('b'), m = act('p');
     fi.className = 'mon-img foe-img sprite' + (f.hp <= 0 ? ' faint' : '');
-    fi.src = front(f.dispId || f.id); fi.alt = f.name;
+    fi.src = front(f.dispId || sprOf(f)); fi.alt = f.name;
     mi.className = 'mon-img me-img sprite' + (m.hp <= 0 ? ' faint' : '');
-    mi.dataset.id = m.dispId || m.id;
+    mi.dataset.id = m.dispId || sprOf(m);
     mi.dataset.shiny = m.shiny && !m.dispId ? '1' : '';
     mi.onerror = () => window.dcBackFallback(mi);
-    mi.src = back(m.dispId || m.id, m.shiny && !m.dispId); mi.alt = m.name;
+    mi.src = back(m.dispId || sprOf(m), m.shiny && !m.dispId); mi.alt = m.name;
   }
 
   const hpColor = f => f > 0.5 ? 'var(--good)' : f > 0.2 ? 'var(--warn)' : 'var(--bad)';
@@ -2137,7 +2150,7 @@
       const f = m.hp / m.maxhp, isActive = i === B.pa;
       const disabled = (busy && !forced) || isActive || m.hp <= 0 || !!trap;
       return `<button class="pmon ${isActive ? 'active' : ''}" data-sw="${i}" ${disabled ? 'disabled' : ''}>
-        <img class="sprite" src="${front(m.id, m.shiny)}" alt="">
+        <img class="sprite" src="${front(sprOf(m), m.shiny)}" alt="">
         <div class="info"><div class="nm">${m.shiny ? '✨ ' : ''}${esc(m.name)} ${statusTag(m)}</div>
           <div class="hpbar"><i style="width:${f * 100}%;background:${hpColor(f)}"></i></div>
           <div class="sub">${m.hp}/${m.maxhp} · ${esc(abil(m) || 'No ability')}${isActive ? ' · in battle' : ''}</div></div></button>`;
@@ -2301,7 +2314,7 @@
   let dexGen = 0, dexOwnedOnly = false;
   const shinyCount = () => Object.keys(save.shinies).filter(n => DEX[n]).length;
   function openShinyDex() {
-    const all = Object.values(DEX).sort((a, b) => a.id - b.id), owned = save.shinies;
+    const all = Object.values(DEX).sort((a, b) => a.id - b.id || (a.spr || 0) - (b.spr || 0)), owned = save.shinies;
     const inGen = (sp, g) => !g || (sp.id >= GENS[g - 1][0] && sp.id <= GENS[g - 1][1]);
     const tally = g => `${all.filter(sp => inGen(sp, g) && owned[sp.name]).length}/${all.filter(sp => inGen(sp, g)).length}`;
     const list = all.filter(sp => inGen(sp, dexGen) && (!dexOwnedOnly || owned[sp.name]));
@@ -2314,8 +2327,8 @@
       <div class="dex-grid">${list.map(sp => {
         const o = owned[sp.name];
         return o
-          ? `<div class="dex-cell got" title="Caught ${esc(o.date)} vs ${esc(o.boss)} (${diffLabel(o.diff)})"><img class="sprite" src="${front(sp.id, true)}" alt="" loading="lazy"><small>${num(sp.id)}</small><span>${esc(sp.name)}</span></div>`
-          : `<div class="dex-cell"><img class="sprite" src="${front(sp.id)}" alt="" loading="lazy"><small>${num(sp.id)}</small><span>???</span></div>`;
+          ? `<div class="dex-cell got" title="Caught ${esc(o.date)} vs ${esc(o.boss)} (${diffLabel(o.diff)})"><img class="sprite" src="${front(sprOf(sp), true)}" alt="" loading="lazy"><small>${num(sp.id)}</small><span>${esc(sp.name)}</span></div>`
+          : `<div class="dex-cell"><img class="sprite" src="${front(sprOf(sp))}" alt="" loading="lazy"><small>${num(sp.id)}</small><span>???</span></div>`;
       }).join('') || '<p class="muted">No shinies here yet.</p>'}</div>`);
     $('#modal .modal-card').classList.add('wide');
     document.querySelectorAll('[data-gen]').forEach(b => b.onclick = () => { dexGen = +b.dataset.gen; openShinyDex(); });
@@ -2354,7 +2367,7 @@
           <button class="btn ghost small-btn" data-practice="${b.key}">Practice</button>
         </div>
         <div class="boss-team">${b.team.map(n => `<div title="${esc(ABILITIES[n] ? ABILITIES[n] + ': ' + ABILITY_INFO[ABILITIES[n]] : '')}">
-          <img class="sprite" src="${front(DEX[n].id)}" alt="" loading="lazy"><span>${esc(n)}</span></div>`).join('')}</div>
+          <img class="sprite" src="${front(sprOf(DEX[n]))}" alt="" loading="lazy"><span>${esc(n)}</span></div>`).join('')}</div>
       </div>`;
     const shown = BOSSES.filter(b => bossFilter === 'all' || b.role === bossFilter);
     openModal(`<h3>ALL BOSSES · ${BOSSES.length}</h3>
