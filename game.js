@@ -121,7 +121,7 @@
 
   const DIFFS = {
     normal: { label: 'Normal', lvl: 100, desc: 'Lv. 100. Usually picks strong moves, sometimes slips up. Sets include setup moves.' },
-    hard: { label: 'Hard', lvl: 100, desc: 'Lv. 100. Predicts your attacks, switches out of bad matchups, plays around speed and KOs. No setup moves, no hints.' }
+    hard: { label: 'Hard', lvl: 100, desc: 'Lv. 100 with competitively trained stats. Thinks a turn ahead, switches to win matchups, revenge-kills, plays around speed and KOs. No setup moves, no hints.' }
   };
   const diffLabel = k => (DIFFS[k] || { label: k ? k[0].toUpperCase() + k.slice(1) : '?' }).label;
   // On Hard, stat-boosting setup moves are replaced (see HARD_MOVES in data.js)
@@ -161,17 +161,35 @@
   // PP with PP Ups (×8/5), as in competitive play
   const maxPP = n => { const m = MOVES[n]; return !m || !m.pp ? 1 : m.pp === 1 ? 1 : Math.floor(m.pp * 8 / 5); };
   const freshBoosts = () => ({ atk: 0, def: 0, spa: 0, spd: 0, spe: 0, acc: 0, eva: 0 });
-  function makeMon(name, level, diff) {
+  // Competitive training for Hard bosses: EVs (out of 252 per stat) and nature multipliers,
+  // in stat order [hp, atk, def, spa, spd, spe]
+  function trainedSpread(b, moves) {
+    const cats = moves.map(n => MOVES[n] && MOVES[n].cat);
+    const phys = cats.filter(c => c === 'p').length, spec = cats.filter(c => c === 's').length;
+    const atk = phys > spec || (phys === spec && b[1] >= b[3]) ? 1 : 3, other = atk === 1 ? 3 : 1;
+    const slowOnPurpose = moves.some(n => n === 'Trick Room' || n === 'Gyro Ball');
+    const bulky = slowOnPurpose || b[5] < 60 || b[0] + b[2] + b[4] > 1.4 * (b[1] + b[3] + b[5]);
+    const ev = [0, 0, 0, 0, 0, 0], nat = [1, 1, 1, 1, 1, 1];
+    if (bulky) { ev[0] = 252; ev[atk] = 252; ev[2] = 4; } else { ev[atk] = 252; ev[5] = 252; ev[0] = 4; }
+    nat[atk] = 1.1;
+    nat[slowOnPurpose ? 5 : phys && spec ? (bulky ? 5 : 4) : other] = 0.9;
+    return { ev, nat };
+  }
+  function makeMon(name, level, diff, trained) {
     const sp = DEX[name], b = sp.stats;
-    const calc = (v, i) => i === 0 ? Math.floor((2 * v + 31 + 21) * level / 100) + level + 10 : Math.floor((2 * v + 31 + 21) * level / 100) + 5;
+    const moves = movesFor(name, diff);
+    const { ev, nat } = trained ? trainedSpread(b, moves) : { ev: [85, 85, 85, 85, 85, 85], nat: [1, 1, 1, 1, 1, 1] };
+    const calc = (v, i) => {
+      const core = Math.floor((2 * v + 31 + Math.floor(ev[i] / 4)) * level / 100);
+      return i === 0 ? core + level + 10 : Math.floor((core + 5) * nat[i]);
+    };
     const s = b.map(calc);
     if (name === 'Pikachu') { s[1] *= 2; s[3] *= 2; } // Light Ball
     if (name === 'Shedinja') s[0] = 1;
-    const moves = movesFor(name, diff);
     return {
       name, id: sp.id, spr: sprOf(sp), types: sp.types.slice(), level, maxhp: s[0], hp: s[0],
       st: { atk: s[1], def: s[2], spa: s[3], spd: s[4], spe: s[5] },
-      boosts: freshBoosts(), status: null, slp: 0, tox: 0, moves,
+      boosts: freshBoosts(), status: null, slp: 0, tox: 0, moves, trained: !!trained,
       pp: Object.fromEntries(moves.map(n => [n, maxPP(n)])), v: {}
     };
   }
@@ -709,7 +727,6 @@
     if (m.crash && s < 2) s *= 0.9;
     if (m.recharge && s < 2) s *= 0.6;
     if (m.selfKO) s = pKOs && !pFirst ? s + 0.3 : s * 0.25;
-    if (m.pivot && B.b.filter(x => x.hp > 0).length > 1 && pb.dmg / b.hp > 0.5) s += 0.35;
     if (m.phaze && Object.values(p.boosts).reduce((t, v) => t + Math.max(0, v), 0) >= 2) s += 0.8;
     if (m.contact && ['Rough Skin', 'Iron Barbs', 'Flame Body', 'Static'].includes(abil(p)) && s < 2) s *= 0.93;
     if (p.v.sub && m.multi) s += 0.2;
@@ -717,25 +734,6 @@
     return s;
   }
 
-  function hardSwitch(b, p) {
-    const B = G.battle;
-    if ((B.bStreak || 0) >= 2 || !canSwitch('b')) return -1;
-    const pb = bestMove(p, b); if (!pb.n) return -1;
-    const mine = Math.max(...usableMoves(b).map(n => scoreHard(n, b, p)));
-    const inDanger = pb.dmg >= b.hp && movesFirst(p, pb.n, b, null) && mine < 2;
-    const walled = bestMove(b, p).dmg / p.hp < 0.2 && pb.dmg / b.hp > 0.35;
-    const doomed = b.v.perish === 1;
-    if (!inDanger && !walled && !doomed) return -1;
-    let best = -1, bestScore = doomed ? -9 : 0.15;
-    B.b.forEach((c, i) => {
-      if (i === B.ba || c.hp <= 0) return;
-      const take = expDmg(p, c, pb.n) / c.hp + entryHazardFrac(c, B.side.b);   // the predicted hit into the switch-in
-      if (take >= 0.5 && !doomed) return;
-      const score = bestMove(c, p).dmg / p.hp - 1.2 * take + (faster(c, p) ? 0.15 : 0);
-      if (score > bestScore) { bestScore = score; best = i; }
-    });
-    return best >= 0 && (doomed || Math.random() < 0.8) ? best : -1;
-  }
   // Fraction of max HP a Pokémon would lose to hazards on its side
   function entryHazardFrac(m, sd) {
     if (!sd || abil(m) === 'Magic Guard') return 0;
@@ -745,16 +743,141 @@
     return f;
   }
 
+  // ---------- Hard: one-turn lookahead ----------
+  // Runs fn with some Pokémon's HP set to hypothetical values, then puts them back.
+  // (The real objects are used because damage code looks up which side a Pokémon is on.)
+  function withHP(changes, fn) {
+    const saved = changes.map(([m]) => m.hp);
+    changes.forEach(([m, hp]) => { m.hp = Math.max(0, Math.min(m.maxhp, Math.round(hp))); });
+    try { return fn(); } finally { changes.forEach(([m], i) => { m.hp = saved[i]; }); }
+  }
+  // Who wins a straight exchange between a and d: about +1 if a wins comfortably, -1 if d does
+  function matchup(a, d) {
+    if (a.hp <= 0) return -1;
+    if (d.hp <= 0) return 1;
+    const ad = bestMove(a, d), da = bestMove(d, a);
+    const ta = ad.dmg > 0 ? Math.ceil(d.hp / ad.dmg) : 9, td = da.dmg > 0 ? Math.ceil(a.hp / da.dmg) : 9;
+    const aFirst = ad.n ? movesFirst(a, ad.n, d, da.n) : false;
+    if (ta < td || (ta === td && aFirst)) return Math.min(1, 0.4 + 0.15 * (td - ta) + 0.3 * a.hp / a.maxhp);
+    return -Math.min(1, 0.4 + 0.15 * (ta - td) + 0.3 * d.hp / d.maxhp);
+  }
+  // The teammate the boss would bring in, given the player's predicted move (null = no hit coming)
+  function bossSwitchTarget(p, pMove, exclude) {
+    const B = G.battle;
+    let best = -1, top = -Infinity;
+    B.b.forEach((c, i) => {
+      if (i === exclude || i === B.ba || c.hp <= 0) return;
+      const take = (pMove ? expDmg(p, c, pMove) / c.hp : 0) + entryHazardFrac(c, B.side.b);
+      const after = Math.max(0, c.hp - take * c.hp);
+      const score = withHP([[c, after]], () => matchup(c, p)) - 1.2 * take - (i === B.b.length - 1 ? 0.25 : 0);
+      if (score > top) { top = score; best = i; }
+    });
+    return best;
+  }
+  // Simulates one turn with expected damage and returns the position from the boss's view.
+  // bOpt / pOpt: { kind: 'move', move } or { kind: 'switch', to }
+  function simTurn(bOpt, pOpt, noPivot) {
+    const B = G.battle;
+    let b = act('b'), p = act('p');
+    const hp = new Map([...B.b, ...B.p].map(m => [m, m.hp]));
+    const hit = (m, amt) => hp.set(m, Math.max(0, hp.get(m) - amt));
+    let utility = 0;
+    if (bOpt.kind === 'switch') { b = B.b[bOpt.to]; hit(b, entryHazardFrac(b, B.side.b) * b.maxhp); }
+    if (pOpt.kind === 'switch') { p = B.p[pOpt.to]; hit(p, entryHazardFrac(p, B.side.p) * p.maxhp); }
+    const bm = bOpt.kind === 'move' ? MOVES[bOpt.move] : null, pm = pOpt.kind === 'move' ? MOVES[pOpt.move] : null;
+    const protects = bm && bm.protect && !b.v.stall;
+    const bossAttack = () => {
+      if (!bm || hp.get(b) <= 0 || hp.get(p) <= 0) return;
+      if (bm.cat === 'x') { utility += 0.3 * Math.max(0, utilityScore(bOpt.move, b, p, true)); return; }
+      const dmg = withHP([[b, hp.get(b)], [p, hp.get(p)]], () => expDmg(b, p, bOpt.move));
+      hit(p, dmg);
+      if (bm.recoil) hit(b, dmg * bm.recoil);
+      if (bm.drain) hp.set(b, Math.min(b.maxhp, hp.get(b) + dmg * bm.drain));
+      if (bm.selfKO) hp.set(b, 0);
+    };
+    const bossPivot = () => {
+      if (noPivot || !bm || !bm.pivot || hp.get(b) <= 0 || !canSwitch('b')) return;
+      if (B.bPivoted === B.turn - 1) return;   // no ping-ponging on consecutive turns
+      const i = bossSwitchTarget(p, pm && pm.cat !== 'x' && !playerMoved ? pOpt.move : null);
+      if (i >= 0) { b = B.b[i]; hit(b, entryHazardFrac(b, B.side.b) * b.maxhp); }
+    };
+    let playerMoved = false;
+    const playerAttack = () => {
+      playerMoved = true;
+      if (!pm || pm.cat === 'x' || hp.get(p) <= 0 || hp.get(b) <= 0 || protects) return;
+      const dmg = withHP([[b, hp.get(b)], [p, hp.get(p)]], () => expDmg(p, b, pOpt.move));
+      hit(b, dmg);
+      if (pm.recoil) hit(p, dmg * pm.recoil);
+    };
+    const bFirst = bm && pm ? movesFirst(b, bOpt.move, p, pOpt.move) : !!bm;
+    if (bFirst) { bossAttack(); bossPivot(); playerAttack(); }
+    else { playerAttack(); bossAttack(); bossPivot(); }
+    // Value of the position: HP left on each side, knockouts, and who wins the next exchange
+    let v = utility;
+    for (const m of B.b) v += hp.get(m) / m.maxhp - (m.hp > 0 && hp.get(m) <= 0 ? 0.5 : 0);
+    for (const m of B.p) v -= hp.get(m) / m.maxhp - (m.hp > 0 && hp.get(m) <= 0 ? 0.5 : 0);
+    if (hp.get(b) > 0 && hp.get(p) > 0) v += 0.5 * withHP([[b, hp.get(b)], [p, hp.get(p)]], () => matchup(b, p));
+    // A knocked-out Pokémon's replacement comes in for free, without taking a hit
+    const freeEntry = (team, foe) => Math.max(0, ...team.filter(c => hp.get(c) > 0).map(c => withHP([[c, hp.get(c)], [foe, hp.get(foe)]], () => matchup(c, foe))));
+    if (hp.get(b) <= 0 && hp.get(p) > 0) v += 0.3 * freeEntry(B.b, p);
+    if (hp.get(p) <= 0 && hp.get(b) > 0) v -= 0.3 * freeEntry(B.p, b);
+    return v;
+  }
+  // The player's likely replies, weighted: usually their strongest move on the boss, sometimes their
+  // second, and their best switch-in when the boss threatens a KO
+  function playerReplies(b, p) {
+    const B = G.battle;
+    const moves = choices(p).map(n => [n, expDmg(p, b, n)]).sort((x, y) => y[1] - x[1]);
+    const replies = [{ kind: 'move', move: moves.length ? moves[0][0] : 'Struggle', w: 0.7 }];
+    if (moves[1] && moves[1][1] > 0) replies.push({ kind: 'move', move: moves[1][0], w: 0.1 });
+    if (bestMove(b, p).dmg >= p.hp * 0.6 && canSwitch('p')) {
+      let best = -1, top = -Infinity;
+      for (const i of benchAlive('p')) { const s = matchup(B.p[i], b); if (s > top) { top = s; best = i; } }
+      if (best >= 0) replies.push({ kind: 'switch', to: best, w: 0.2 });
+    }
+    return replies;
+  }
+  // Expected value of a boss option over the player's replies, with a little weight on the worst case
+  function simValue(opt, replies, noPivot) {
+    let sum = 0, wsum = 0, low = Infinity;
+    for (const r of replies) { const v = simTurn(opt, r, noPivot); sum += r.w * v; wsum += r.w; low = Math.min(low, v); }
+    return 0.8 * sum / wsum + 0.2 * low;
+  }
+  // Hard: attacks are chosen by scoreHard; the lookahead decides what a switch is worth,
+  // both for switching out directly and for the switch at the end of U-turn and the like
+  function hardAction(b, p) {
+    const B = G.battle, replies = playerReplies(b, p);
+    const canPivot = canSwitch('b') && benchAlive('b').length > 0, justPivoted = B.bPivoted === B.turn - 1;
+    const scored = usableMoves(b).map(n => {
+      const m = MOVES[n];
+      let s = scoreHard(n, b, p);
+      if (m.pivot && s >= 0) {
+        if (!canPivot) s = m.cat === 'x' ? -1 : s;
+        else if (justPivoted) s = m.cat === 'x' ? -1 : s * 0.4;   // just came in by a switching move: don't bounce straight out
+        else {
+          const gain = simValue({ kind: 'move', move: n }, replies) - simValue({ kind: 'move', move: n }, replies, true);
+          s = m.cat === 'x' ? (gain > 0.15 ? 0.5 + gain : -1) : s + Math.max(0, Math.min(0.3, gain));
+        }
+      }
+      return [n, s + Math.random() * 0.03];
+    }).sort((x, y) => y[1] - x[1]);
+    const move = scored[0][0];
+    if ((B.bStreak || 0) < 2 && canPivot) {
+      let sw = -1, top = simValue({ kind: 'move', move }, replies) + 0.5;   // switching must clearly beat attacking
+      for (const i of benchAlive('b')) { const v = simValue({ kind: 'switch', to: i }, replies); if (v > top) { top = v; sw = i; } }
+      if (sw >= 0) return { kind: 'switch', to: sw };
+    }
+    return { kind: 'move', move };
+  }
+
   function bossAction() {
     const b = act('b'), p = act('p'), B = G.battle;
     const forced = forcedAction(b); if (forced) return forced;
     const moves = usableMoves(b);
     if (G.diff === 'hard') {
-      const sw = hardSwitch(b, p);
-      if (sw >= 0) { B.bStreak = (B.bStreak || 0) + 1; return { kind: 'switch', to: sw }; }
-      B.bStreak = 0;
-      const scored = moves.map(n => [n, scoreHard(n, b, p) + Math.random() * 0.03]).sort((x, y) => y[1] - x[1]);
-      return { kind: 'move', move: scored[0][0] };
+      const choice = b.v.perish === 1 && canSwitch('b') && benchAlive('b').length ? { kind: 'switch', to: bossSwitchTarget(p, null) } : hardAction(b, p);
+      B.bStreak = choice.kind === 'switch' ? (B.bStreak || 0) + 1 : 0;
+      return choice;
     }
     const sensible = moves.filter(n => scoreNormal(n, b, p) > 0);
     if (Math.random() < 0.3) return { kind: 'move', move: pickRand(sensible.length ? sensible : moves) };
@@ -762,6 +885,7 @@
     return { kind: 'move', move: scored[0][0] };
   }
 
+  // Which Pokémon the boss sends in next (after a faint, or mid-turn after U-turn and the like)
   function bossNext(excludeActive) {
     const B = G.battle;
     const alive = B.b.map((m, i) => i).filter(i => B.b[i].hp > 0 && !(excludeActive && i === B.ba));
@@ -769,9 +893,19 @@
     if (G.diff !== 'hard') return alive[0];
     const p = act('p');
     if (p.hp <= 0) return alive[0];
+    // Mid-turn switch before the player has moved: pick whoever takes their predicted hit best
+    const pa = B.acts && B.acts.p;
+    if (excludeActive && pa && pa.kind === 'move' && B.acted && !B.acted.p && MOVES[pa.move] && MOVES[pa.move].cat !== 'x') {
+      const i = bossSwitchTarget(p, pa.move);
+      if (i >= 0) return i;
+    }
+    const last = B.b.length - 1;
     const rate = i => {
-      const c = B.b[i];
-      return bestMove(c, p).dmg / p.hp - 0.9 * bestMove(p, c).dmg / c.hp + (faster(c, p) ? 0.2 : 0) - entryHazardFrac(c, B.side.b);
+      const c = B.b[i], after = c.hp * (1 - entryHazardFrac(c, B.side.b));
+      const mine = bestMove(c, p);
+      const revenge = mine.dmg >= p.hp && movesFirst(c, mine.n, p, bestMove(p, c).n) ? 1 : 0;   // outspeeds and KOs
+      const hold = i === last && alive.length > 1 ? 0.3 : 0;                                       // keep the ace for later
+      return withHP([[c, after]], () => matchup(c, p)) + revenge - hold;
     };
     return alive.map(i => [i, rate(i)]).sort((x, y) => y[1] - x[1])[0][0];
   }
@@ -799,7 +933,7 @@
     const log = $('#log');
     if (log) { const p = document.createElement('p'); p.className = cls; p.textContent = msg; log.appendChild(p); log.scrollTop = log.scrollHeight; }
     refresh();
-    await sleep(cls === 'turn' ? 120 : delay());
+    await sleep(cls === 'turn' ? Math.min(120, delay()) : delay());
   }
   function anim(side, cls) {
     const el = $(side === 'p' ? '#me-img' : '#foe-img'); if (!el) return;
@@ -1381,6 +1515,7 @@
   async function pivotOut(s, opts = {}) {
     if (!benchAlive(s).length || act(s).hp <= 0) return;
     const idx = s === 'p' ? await pickSwitch('pivot') : bossNext(true);
+    if (s === 'b' && idx >= 0) G.battle.bPivoted = G.battle.turn;   // Hard won't switch straight back next turn
     if (idx < 0) return;
     await switchIn(s, idx, true, opts);
   }
@@ -2009,7 +2144,7 @@
 
   async function startBattle() {
     const boss = bossOf(G), lvl = DIFFS[G.diff].lvl;
-    G.battle = { p: G.picks.map(n => Object.assign(makeMon(n, 100, G.diff), { shiny: isShiny(n) })), b: boss.team.map(n => makeMon(n, lvl, G.diff)), pa: 0, ba: 0, turn: 0, log: [], need: null, side: { p: {}, b: {} }, field: {}, future: {} };
+    G.battle = { p: G.picks.map(n => Object.assign(makeMon(n, 100, G.diff), { shiny: isShiny(n) })), b: boss.team.map(n => makeMon(n, lvl, G.diff, G.diff === 'hard')), pa: 0, ba: 0, turn: 0, log: [], need: null, side: { p: {}, b: {} }, field: {}, future: {} };
     if (G.diff === 'hard') G.battle.ba = bossNext();
     act('p').v.enteredTurn = 0; act('b').v.enteredTurn = 0;
     G.phase = 'battle';
@@ -2108,7 +2243,7 @@
     const fb = $('#foe-box'); if (!fb || !G.battle) return;
     const f = act('b'), m = act('p');
     const ff = f.hp / f.maxhp, mf = m.hp / m.maxhp;
-    fb.innerHTML = `<div class="nm"><span>${esc(f.name)} ${statusTag(f)}</span><span class="lv">Lv${f.level}</span></div>
+    fb.innerHTML = `<div class="nm"><span>${esc(f.name)} ${statusTag(f)}</span><span class="lv">${f.trained ? '<span class="trained-tag" title="Hard bosses have competitively trained stats">TRAINED</span> ' : ''}Lv${f.level}</span></div>
       <div class="hpbar"><i style="width:${ff * 100}%;background:${hpColor(ff)}"></i></div>
       <div class="num">${abilTag(f)}${Math.ceil(ff * 100)}%</div><div class="boosts">${boostText(f)}</div>${volTags(f)}`;
     $('#me-box').innerHTML = `<div class="nm"><span>${m.shiny ? '✨ ' : ''}${esc(m.name)} ${statusTag(m)}</span><span class="lv">Lv${m.level}</span></div>
@@ -2340,7 +2475,7 @@
       <ul>
         <li>Every day a different <b>champion, gym leader or villain</b> from across the Pokémon series waits for you. Everyone faces the same boss.</li>
         <li><b>Draft</b> 6 Pokémon from today's pool of 9. Your first pick leads.</li>
-        <li>Choose a <b>difficulty</b>. On Normal the boss is decent but makes mistakes. On Hard it predicts your attacks and switches out of bad matchups, setup moves (Swords Dance, Dragon Dance…) are swapped for attacks on every Pokémon, and there are no effectiveness hints.</li>
+        <li>Choose a <b>difficulty</b>. On Normal the boss is decent but makes mistakes. On Hard its Pokémon have competitively trained stats, it thinks a turn ahead and switches to win matchups, setup moves (Swords Dance, Dragon Dance…) are swapped for attacks on every Pokémon, and there are no effectiveness hints.</li>
         <li>Battles are full 6v6 turn-based fights at Lv. 100 using the Gen 9 rules: the real damage formula, PP, accuracy, crits, priority and every move's added effects (flinching, confusion, stat drops, burns…).</li>
         <li><b>Tactics</b> work too: Protect, Substitute, Stealth Rock and Spikes, Reflect and Light Screen, Trick Room, Leech Seed, Taunt, U-turn and Volt Switch, Roar, Perish Song and more.</li>
         <li><b>Abilities</b> matter: Intimidate, Levitate, Huge Power, Multiscale, Sturdy, absorb abilities and more. Hover an ability to read what it does.</li>

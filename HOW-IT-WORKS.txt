@@ -112,6 +112,10 @@ happen before moves.
 
 Stats: every Pokémon has 31 IVs, 85 EVs in each stat and a neutral nature (similar to Showdown's
 random battles). HP = 2*Base + 162. Other stats = 2*Base + 57 (at level 100).
+On Hard, the BOSS's Pokémon are competitively trained instead (a "TRAINED" tag shows in its HP
+box): 252 EVs in its main attacking stat and either Speed (fast attackers) or HP (slow or bulky
+ones), with a nature that raises that attacking stat by 10% and lowers an unused stat. Trick Room
+and Gyro Ball users lower Speed instead. Your team, Normal mode and the draft pool are unaffected.
 
 Damage formula (Gen 9, as in the games):
   base = floor(floor(floor(2*Level/5 + 2) * Power * Atk / Def) / 50) + 2
@@ -292,22 +296,42 @@ NORMAL
   sends out the next one in team order.
 
 HARD
-- Predicts that the player will use the move that does the most expected damage to the boss.
-- Move scoring considers turn order (priority and Speed, including abilities and weather):
-  - a guaranteed KO (even on a minimum damage roll) scores highest; a possible KO comes next;
-    moves that 2HKO get a small bonus;
-  - if the player will move first AND KO the boss, attacks that won't land first are almost
-    worthless, so it looks for priority or a switch instead;
-  - recoil at low HP and crash-risk moves are discouraged unless they KO.
-- Status moves are used tactically: sleep when it's safe, burn on physical attackers, paralysis on
-  faster Pokémon, Toxic on bulky ones. Healing is used only when it heals more than the player's
-  predicted hit.
-- Switching: it switches out when it is about to be KO'd and can't KO first, or when it is
-  "walled" (doing under 20% per hit while taking over 35%). It switches to the teammate that takes
-  the predicted hit best and threatens the player most. It won't switch more than twice in a row,
-  only switches 80% of the time it wants to (so it's less predictable), and can't switch while
-  trapped.
-- Lead and replacements: picked by matchup (damage it deals vs damage it takes, plus a speed bonus).
+- Trained stats for the boss's Pokémon (section 4).
+- Attacks are chosen by scoring rules that predict the player will use their strongest move on
+  the boss:
+  - a guaranteed KO (even on a minimum damage roll) scores highest, a likely KO next, a 2HKO
+    gets a small bonus;
+  - if the player will move first AND KO the boss, its attacks are nearly worthless, so it
+    looks for priority, Protect or a switch;
+  - recoil at low HP, crash risk, recharge and self-KO moves are discouraged unless they KO.
+  Rules for special moves still apply: Fake Out only on the first turn, no Dream Eater on an
+  awake target, no Focus Punch into an attack, contact moves into Rough Skin discouraged, and
+  multi-hit moves preferred against Substitute.
+- Thinks one turn ahead about switching. A quick simulation plays out the turn for each option
+  against the player's likely replies: their strongest move (weighted 70%), their second
+  strongest (10%), and their best switch-in when the boss threatens a KO (20%). The simulation
+  uses expected damage, priority and Speed, KOs, recoil, drain and Protect. It scores the position
+  by HP left on each side, KOs, who wins the next exchange between the active Pokémon, and the
+  free switch-in a side gets after a faint. The score is 80% the weighted average and 20% the
+  worst case.
+- It switches out directly only when the simulation says the switch is clearly better than its
+  best attack (by 0.5, roughly half a Pokémon's HP). It won't switch more than twice in a row and
+  can't switch while trapped.
+- Switching attacks (U-turn, Volt Switch, Flip Turn) get a bonus of at most 0.3 for exactly what
+  the switch adds in the simulation. That's often nothing, so U-turn is only picked over a
+  stronger attack when bringing in a teammate really helps. Switching status moves (Parting Shot,
+  Teleport...) are only used when the switch is worth more than 0.15. Right after coming in by a
+  switching move it strongly avoids using another one. Mid-turn, the teammate it brings in is
+  the one that takes the player's predicted hit best and threatens back.
+- Lead and replacements after a faint: a teammate that outspeeds and KOs the player's active
+  Pokémon comes first (a revenge kill); otherwise the best matchup after hazard damage. The ace
+  (last slot) is held back while another teammate can do the job.
+- Perish Song: switches out on the last count when it can.
+- Testing: a scripted player (drafts the best matchups from the pool, uses its strongest move,
+  switches out of predicted KOs) played the same 120 Hard battles before and after this version.
+  The boss won 39% before and 68% after (42% with the new decisions but untrained stats). Boss
+  U-turn style moves fell from 0.61 to about 0.46 per battle, and it stopped bouncing straight
+  back out on the next turn (8 times before, 0-2 after).
 - Support and tactical moves (both difficulties):
   - Stealth Rock, Spikes, Toxic Spikes and Sticky Web while the player has 3+ Pokémon left;
     Defog, Rapid Spin, Court Change or Tidy Up when hazards are on the boss's side;

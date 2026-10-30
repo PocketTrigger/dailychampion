@@ -372,3 +372,4 @@ h2 { margin: 0 0 6px; }
 .me-strip { left: 12px; bottom: 16px; }
 .move.continue { background: #4a5568; }
 .move:disabled { opacity: .55; }
+.trained-tag { font-size: 8px; font-weight: 800; padding: 1px 4px; border-radius: 4px; background: #b8323a; color: #fff; vertical-align: middle; cursor: help; }
