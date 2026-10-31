@@ -19,12 +19,18 @@ CONTENTS
  10. Saving, stats, sharing and shiny hunting
  11. Rebuilding the Pokédex, and hosting
  12. Legal and credits
+ 13. Playing in Discord
 
 
 ------------------------------------------------------------------------------------------------
 1. FILES
 ------------------------------------------------------------------------------------------------
 index.html          Page shell: header buttons, modal, script tags.
+env.js              Loaded first. Detects whether the game runs inside Discord and builds the
+                    addresses of images on other sites (see section 13).
+discord.js          Discord Activity handshake, only loaded inside Discord.
+vendor/             Discord's Embedded App SDK 2.5.0, bundled into one file (MIT licence).
+fonts/              Self-hosted fonts: Inter and Press Start 2P (SIL Open Font License).
 styles.css          All styling, including animation and weather overlays.
 moves-gen.js        GENERATED. All 822 moves with their full effects, converted from Showdown's
                     move data (643 of them are playable). Built by tools/build-dex.js.
@@ -42,7 +48,7 @@ tools/README.md     How to re-run the build.
 tools/showdown-data Downloaded Showdown data files, plus pokeapi-forms.json (PokeAPI's sprite
                     numbers for alternate forms). Only needed to rebuild, not to run the site.
 
-Load order matters: moves-gen.js, data.js, dex-all.js, anim.js, then game.js.
+Load order matters: env.js, moves-gen.js, data.js, dex-all.js, anim.js, then game.js.
 
 
 ------------------------------------------------------------------------------------------------
@@ -561,8 +567,9 @@ Running locally: any static file server works, for example
 then open http://localhost:5174. Opening index.html directly from disk also mostly works.
 
 Hosting: it's a plain static site (HTML/CSS/JS), so GitHub Pages, Netlify, Cloudflare Pages and
-similar all work. Upload index.html, styles.css, moves-gen.js, data.js, dex-all.js, anim.js and game.js. The
-tools/ folder is not needed online.
+similar all work. Upload index.html, styles.css, env.js, discord.js, moves-gen.js, data.js,
+dex-all.js, anim.js, game.js, and the fonts/ and vendor/ folders. The tools/ folder is not needed
+online.
 
 
 ------------------------------------------------------------------------------------------------
@@ -573,6 +580,49 @@ tools/ folder is not needed online.
   the ones most likely to receive takedowns.
 - Data: Pokémon Showdown (smogon/pokemon-showdown, MIT licensed). Sprites: PokéAPI and Pokémon
   Showdown. Effect images: Pokémon Showdown.
+- Fonts: Inter and Press Start 2P, both under the SIL Open Font License (fonts/OFL-*.txt).
+- Discord Embedded App SDK: MIT licence (vendor/LICENSE-discord-embedded-app-sdk.txt).
 - The Showdown battle client (which contains its official animations) is AGPL-3.0 licensed. None
   of its code is copied here; only its public data files and images are used.
 - Inspired by "Daily Red" (the original daily battle against Red).
+
+
+------------------------------------------------------------------------------------------------
+13. PLAYING IN DISCORD
+------------------------------------------------------------------------------------------------
+The game can run inside Discord as an Activity, the same way Discord's Wordle does: someone types
+the app's launch command (for example /dailychampion) or picks it from the Activities launcher,
+and the game opens inside Discord on desktop, browser and mobile. It's the same website, loaded
+by Discord.
+
+How it works:
+- Discord loads the page through its own proxy at https://<application id>.discordsays.com, and
+  the page may only load files from that address. env.js notices it's inside Discord (the
+  discordsays.com address, or Discord's frame_id / instance_id URL parameters) and then requests
+  images from other sites through the proxy instead:
+    raw.githubusercontent.com  (Pokémon sprites)                    -> /.proxy/pokeapi/...
+    play.pokemonshowdown.com   (trainer sprites, effect images)     -> /.proxy/showdown/...
+  On the normal website the addresses are unchanged.
+- The fonts are part of the site (fonts/) because Google Fonts can't be used through the proxy.
+- discord.js loads Discord's SDK (vendor/) and tells Discord the page is ready. If that fails,
+  the game still runs. There is no Discord sign-in and no server: progress, streaks and the Shiny
+  Dex are saved in that device's browser storage, as on the website. Inside Discord they are
+  separate from the website's saves, because it's a different web address.
+- Sharing: if Discord blocks the clipboard, the share button shows the result text ready to copy.
+
+One-time setup in the Discord Developer Portal (https://discord.com/developers/applications):
+1. New Application, named Daily Champion. Copy its Application ID into DISCORD_CLIENT_ID in
+   env.js (it's public, not a secret), then push the change.
+2. Activities > Settings: turn on Activities.
+3. Activities > URL Mappings:
+     Root Mapping   /          -> dailychampion.au
+     Proxy Path     /pokeapi   -> raw.githubusercontent.com
+     Proxy Path     /showdown  -> play.pokemonshowdown.com
+4. Installation: allow Guild Install and User Install, and use the install link to add the app to
+   a server. Discord creates the launch command (Entry Point command) automatically.
+5. Optional: give the app an icon and description. A public App Directory listing is optional; as
+   a Pokémon fan project it may be refused there, but install links work without it.
+
+Testing locally: Discord can't be reached from localhost, but adding
+?frame_id=test&instance_id=test to the address turns on Discord mode. Images then need a proxy
+that serves /.proxy/pokeapi and /.proxy/showdown; without one they won't load, which is expected.

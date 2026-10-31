@@ -3,7 +3,7 @@
 // Animations are picked from a move's type, category and flags, so every move gets one.
 (() => {
   'use strict';
-  const FX_URL = 'https://play.pokemonshowdown.com/fx/';
+  const FX_URL = dcExt('play.pokemonshowdown.com', '/fx/');
   let getOpts = () => ({ speed: 1, anim: true });
 
   const sleep = ms => new Promise(r => setTimeout(r, ms));

@@ -21,12 +21,12 @@
   const bst = sp => sp.stats.reduce((a, b) => a + b, 0);
 
   // ---------- Sprites ----------
-  const SPR = 'https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/';
+  const SPR = dcExt('raw.githubusercontent.com', '/PokeAPI/sprites/master/sprites/pokemon/');
   const front = (id, shiny) => `${SPR}${shiny ? 'shiny/' : ''}${id}.png`;
   const back = (id, shiny) => `${SPR}back/${shiny ? 'shiny/' : ''}${id}.png`;
   // Alternate forms have their own sprite number (PokeAPI numbers them from 10001)
   const sprOf = sp => sp.spr || sp.id;
-  const trainerSrc = boss => `https://play.pokemonshowdown.com/sprites/trainers/${boss.sprite || boss.key}.png`;
+  const trainerSrc = boss => dcExt('play.pokemonshowdown.com', `/sprites/trainers/${boss.sprite || boss.key}.png`);
   // Trainers without a Showdown sprite get a Poké Ball silhouette instead of an empty gap
   const TRAINER_FALLBACK = 'data:image/svg+xml,' + encodeURIComponent('<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64"><circle cx="32" cy="32" r="26" fill="#000" fill-opacity=".35" stroke="#fff" stroke-opacity=".5" stroke-width="3"/><path d="M6 32h52" stroke="#fff" stroke-opacity=".5" stroke-width="3"/><circle cx="32" cy="32" r="7" fill="#000" fill-opacity=".5" stroke="#fff" stroke-opacity=".5" stroke-width="3"/></svg>');
   window.dcTrainerFallback = img => { img.onerror = null; img.src = TRAINER_FALLBACK; img.style.imageRendering = 'auto'; };
@@ -2394,7 +2394,11 @@
   function toast(msg) { const t = $('#toast'); t.textContent = msg; t.hidden = false; clearTimeout(toast.t); toast.t = setTimeout(() => t.hidden = true, 1800); }
   async function copyText(text) {
     try { await navigator.clipboard.writeText(text); toast('Copied to clipboard!'); }
-    catch (e) { openModal(`<h3>SHARE</h3><textarea style="width:100%;height:120px">${esc(text)}</textarea>`); }
+    catch (e) {
+      // Clipboard blocked (for example inside Discord): show the text ready to copy by hand
+      openModal(`<h3>SHARE</h3><p class="muted small">Copy this text:</p><textarea id="share-text" readonly style="width:100%;height:120px">${esc(text)}</textarea>`);
+      const ta = $('#share-text'); ta.focus(); ta.select();
+    }
   }
 
   function openPracticeMenu() {
