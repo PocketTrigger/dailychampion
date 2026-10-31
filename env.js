@@ -4,7 +4,7 @@
 // Discord Developer Portal; see HOW-IT-WORKS.txt section 13).
 (function () {
   // The Discord application's ID (public, not a secret). Set after creating the app.
-  window.DISCORD_CLIENT_ID = 'REPLACE_WITH_APPLICATION_ID';
+  window.DISCORD_CLIENT_ID = '1565931147073167440';
 
   const q = new URLSearchParams(location.search);
   window.DC_DISCORD = /\.discordsays\.com$/.test(location.hostname) || (q.has('frame_id') && q.has('instance_id'));
