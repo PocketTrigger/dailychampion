@@ -1,0 +1,13 @@
+name = "dailychampion-discord"
+main = "src/index.js"
+compatibility_date = "2025-10-01"
+
+[vars]
+DISCORD_CLIENT_ID = "1565931147073167440"
+# From the Developer Portal: General Information > Public Key (public, not a secret)
+DISCORD_PUBLIC_KEY = "REPLACE_WITH_PUBLIC_KEY"
+
+# Created with: npx wrangler kv namespace create CARDS   (paste the id it prints)
+[[kv_namespaces]]
+binding = "CARDS"
+id = "REPLACE_WITH_KV_NAMESPACE_ID"

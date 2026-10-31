@@ -1006,6 +1006,7 @@
     if (G.phase === 'done') return;
     persistRun();
     renderControls();
+    discordReport();
   }
 
   async function afterFaints() {
@@ -2014,6 +2015,22 @@
     for (const s of ['p', 'b']) await syncForm(s);
   }
 
+  // Inside Discord: send daily battle progress for the live card in the channel (see discord.js).
+  // Only when something visible changes (start, a faint, the result), to keep the edits few.
+  function discordReport() {
+    if (!window.dcDiscordReport || !G || G.mode !== 'daily' || !G.battle) return;
+    const B = G.battle, boss = bossOf(G), r = G.phase === 'done' ? G.result : null;
+    const state = {
+      day: G.key, num: G.num, boss: boss.name, sprite: boss.sprite || boss.key, diff: diffLabel(G.diff), turn: B.turn,
+      me: B.p.map(m => m.hp > 0), foe: B.b.map(m => m.hp > 0), done: !!r, won: !!(r && r.won),
+      shiny: r && r.shiny && r.shiny.caught ? r.shiny.name : null
+    };
+    const sig = JSON.stringify([state.me, state.foe, state.done]);
+    if (sig === discordReport.last) return;
+    discordReport.last = sig;
+    window.dcDiscordReport(state);
+  }
+
   async function finish(won) {
     const B = G.battle, boss = bossOf(G);
     await say(won ? `You defeated ${boss.name}!` : `You are out of usable Pokémon…`, 'sys');
@@ -2033,6 +2050,7 @@
       }
     }
     persistRun();
+    discordReport();
     await sleep(900);
     render();
   }
@@ -2157,7 +2175,7 @@
     if (act('p').shiny) FX.shiny('p');
     const first = speed(act('p')) > speed(act('b')) ? ['p', 'b'] : ['b', 'p'];
     for (const s of first) await onEntry(s);
-    busy = false; persistRun(); renderControls();
+    busy = false; persistRun(); renderControls(); discordReport();
   }
 
   function renderBattle() {

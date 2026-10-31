@@ -31,6 +31,8 @@ env.js              Loaded first. Detects whether the game runs inside Discord a
 discord.js          Discord Activity handshake, only loaded inside Discord.
 vendor/             Discord's Embedded App SDK 2.5.0, bundled into one file (MIT licence).
 fonts/              Self-hosted fonts: Inter and Press Start 2P (SIL Open Font License).
+worker/             Cloudflare Worker that posts the live battle card in Discord (section 13).
+                    Not part of the website; deployed separately (worker/README.md).
 styles.css          All styling, including animation and weather overlays.
 moves-gen.js        GENERATED. All 822 moves with their full effects, converted from Showdown's
                     move data (643 of them are playable). Built by tools/build-dex.js.
@@ -605,9 +607,22 @@ How it works:
   On the normal website the addresses are unchanged.
 - The fonts are part of the site (fonts/) because Google Fonts can't be used through the proxy.
 - discord.js loads Discord's SDK (vendor/) and tells Discord the page is ready. If that fails,
-  the game still runs. There is no Discord sign-in and no server: progress, streaks and the Shiny
-  Dex are saved in that device's browser storage, as on the website. Inside Discord they are
-  separate from the website's saves, because it's a different web address.
+  the game still runs. Progress, streaks and the Shiny Dex are saved in that device's browser
+  storage, as on the website. Inside Discord they are separate from the website's saves, because
+  it's a different web address.
+- Live battle card: like Discord's Wordle, the app posts a card in the channel when someone plays
+  the daily and edits it as the battle goes (their avatar, the boss, the turn, 🟩/🟥 for their
+  Pokémon and 🔴/💀 for the boss's), ending with the result and a "Play now!" button.
+  - The game asks for a one-time Discord sign-in (username and avatar only). The sign-in code is
+    swapped for a token by the Worker in worker/, which holds the app's secrets, so they never
+    appear in the website code.
+  - The game sends an update at the start, whenever a Pokémon faints, and with the result (about
+    10 per battle). The Worker posts the card with the bot account and edits the same message
+    after that (one card per player per day per channel; practice battles don't post).
+  - "Play now!" is answered by the Worker's Interactions Endpoint, which checks Discord's
+    signature and tells Discord to launch the game.
+  - The game reaches the Worker through Discord's proxy at /.proxy/api. If the Worker isn't set
+    up, or the bot isn't in the server, the game works normally without a card.
 - Sharing: if Discord blocks the clipboard, the share button shows the result text ready to copy.
 
 One-time setup in the Discord Developer Portal (https://discord.com/developers/applications):
@@ -618,9 +633,12 @@ One-time setup in the Discord Developer Portal (https://discord.com/developers/a
      Root Mapping   /          -> dailychampion.au
      Proxy Path     /pokeapi   -> raw.githubusercontent.com
      Proxy Path     /showdown  -> play.pokemonshowdown.com
+     Proxy Path     /api       -> the Worker's address (for the live card; see worker/README.md)
 4. Installation: allow Guild Install and User Install, and use the install link to add the app to
    a server. Discord creates the launch command (Entry Point command) automatically.
-5. Optional: give the app an icon and description. A public App Directory listing is optional; as
+5. For the live battle card, follow worker/README.md (Cloudflare account, two secrets, the
+   Interactions Endpoint URL, an OAuth2 redirect, and the bot permissions).
+6. Optional: give the app an icon and description. A public App Directory listing is optional; as
    a Pokémon fan project it may be refused there, but install links work without it.
 
 Testing locally: Discord can't be reached from localhost, but adding
