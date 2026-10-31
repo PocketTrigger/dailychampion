@@ -133,13 +133,20 @@ async function interactions(request, env) {
   return json({ type: 4, data: { content: 'Open Daily Champion from the Activities menu to play.', flags: 64 } });
 }
 
+// Checks Discord's Ed25519 signature. Cloudflare accepts the standard algorithm name and its older
+// "NODE-ED25519" name; try both so it works on any runtime version.
 async function verify(publicKeyHex, sigHex, message) {
-  try {
-    const key = await crypto.subtle.importKey('raw', hex(publicKeyHex), { name: 'Ed25519' }, false, ['verify']);
-    return await crypto.subtle.verify({ name: 'Ed25519' }, key, hex(sigHex), new TextEncoder().encode(message));
-  } catch (e) {
-    return false;
+  if (!/^[0-9a-f]{64}$/i.test(publicKeyHex || '')) { console.log('DISCORD_PUBLIC_KEY is missing or not 64 hex characters'); return false; }
+  const data = new TextEncoder().encode(message);
+  for (const alg of [{ name: 'Ed25519' }, { name: 'NODE-ED25519', namedCurve: 'NODE-ED25519' }]) {
+    try {
+      const key = await crypto.subtle.importKey('raw', hex(publicKeyHex), alg, false, ['verify']);
+      return await crypto.subtle.verify(alg, key, hex(sigHex), data);
+    } catch (e) {
+      console.log(`Signature check with ${alg.name} failed: ${e && e.message}`);
+    }
   }
+  return false;
 }
 const hex = h => new Uint8Array((h.match(/.{2}/g) || []).map(b => parseInt(b, 16)));
 async function sha256(text) {
